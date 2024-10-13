@@ -1,0 +1,3 @@
+[submodule "MTGNN"]
+	path = MTGNN
+	url = https://github.com/nnzhan/MTGNN.git
