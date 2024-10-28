@@ -2,7 +2,7 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from .layer import *
+from layer import *
 
 
 class MTGNN(nn.Module):
