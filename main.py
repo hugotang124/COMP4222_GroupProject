@@ -94,7 +94,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
 
 def main(args):
 
-    Data = DataLoader(args.data, 0.6, 0.2, device, args.horizon, args.seq_in_len, args.normalize)
+    Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize)
 
     model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
                   device, dropout = args.dropout, subgraph_size = args.subgraph_size,
@@ -182,7 +182,7 @@ def run(args):
     rae = []
     corr = []
     for i in range(10):
-        val_acc, val_rae, val_corr, test_acc, test_rae, test_corr = main(device, args)
+        val_acc, val_rae, val_corr, test_acc, test_rae, test_corr = main(args)
         vacc.append(val_acc)
         vrae.append(val_rae)
         vcorr.append(val_corr)
@@ -205,7 +205,8 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = 'PyTorch Time series forecasting')
-    parser.add_argument('--data', type = str, default = './data/solar_AL.txt', help = 'location of the data file')
+    parser.add_argument('--data-directory', type = str, default = './data/', help = 'location of the data directory')
+    parser.add_argument("--time-interval", type = str, default = "1h", help = "time interval of data")
     parser.add_argument('--log_interval', type = int, default = 2000, metavar = 'N', help = 'report interval')
     parser.add_argument('--save', type = str, default = 'model/model.pt', help = 'path to save the final model')
     parser.add_argument('--optim', type = str, default = 'adam')

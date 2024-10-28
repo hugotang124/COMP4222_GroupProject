@@ -1,6 +1,8 @@
 import pickle
 import numpy as np
 import os
+import glob
+import pandas as pd
 import scipy.sparse as sp
 import torch
 from scipy.sparse import linalg
@@ -11,14 +13,32 @@ def normal_std(x):
     return x.std() * np.sqrt((len(x) - 1.)/(len(x)))
 
 class DataLoader(object):
-    # train and valid is the ratio of training set and validation set. test = 1 - train - valid
-    def __init__(self, file_name, train, valid, device, horizon, window, normalize=2):
+
+    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int):
+
+        data_files = glob.glob(os.path.join(data_directory, f"*{time_interval}*.csv"))
+
+        if not data_files:
+            print(f"There are no data files in provided directory {data_directory} and time interval = {time_interval}")
+            exit()
+
+        self.currencies = list(map(lambda x: os.path.split(x)[-1].replace(f"{time_interval}.csv", ""), data_files))
+        currencies_data = dict(map(lambda x: (x[0], pd.read_csv(x[1], index_col = 0)), zip(self.currencies, data_files)))
+
+        for currency, data in currencies_data.items():
+            data.columns = [f"{currency.lower()}_{x}" for x in data.columns]
+            self._build_features(currency, data)
+
+
+        self.raw_data = pd.concat(currencies_data.values(), axis = 1)
+        self.raw_data.index = pd.to_datetime(self.raw_data.index)
+
+
+        self.data = np.zeros(self.raw_data.shape)
+        self.n, self.m = self.data.shape
+
         self.P = window
         self.h = horizon
-        fin = open(file_name)
-        self.rawdat = np.loadtxt(fin, delimiter=',')
-        self.dat = np.zeros(self.rawdat.shape)
-        self.n, self.m = self.dat.shape
         self.normalize = 2
         self.scale = np.ones(self.m)
         self._normalized(normalize)
@@ -35,20 +55,24 @@ class DataLoader(object):
 
         self.device = device
 
+    def _build_features(self, currency: str, data: pd.DataFrame):
+        # Build all the features (e.g. indicators) needed
+        pass
+
     def _normalized(self, normalize):
         # normalized by the maximum value of entire matrix.
 
         if (normalize == 0):
-            self.dat = self.rawdat
+            self.data = self.rawdat
 
         if (normalize == 1):
-            self.dat = self.rawdat / np.max(self.rawdat)
+            self.data = self.rawdat / np.max(self.rawdat)
 
         # normlized by the maximum value of each row(sensor).
         if (normalize == 2):
             for i in range(self.m):
                 self.scale[i] = np.max(np.abs(self.rawdat[:, i]))
-                self.dat[:, i] = self.rawdat[:, i] / np.max(np.abs(self.rawdat[:, i]))
+                self.data[:, i] = self.rawdat[:, i] / np.max(np.abs(self.rawdat[:, i]))
 
     def _split(self, train, valid, test):
 
@@ -66,8 +90,8 @@ class DataLoader(object):
         for i in range(n):
             end = idx_set[i] - self.h + 1
             start = end - self.P
-            X[i, :, :] = torch.from_numpy(self.dat[start:end, :])
-            Y[i, :] = torch.from_numpy(self.dat[idx_set[i], :])
+            X[i, :, :] = torch.from_numpy(self.data[start:end, :])
+            Y[i, :] = torch.from_numpy(self.data[idx_set[i], :])
         return [X, Y]
 
     def get_batches(self, inputs, targets, batch_size, shuffle=True):
