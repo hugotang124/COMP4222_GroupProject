@@ -10,7 +10,7 @@ from torch.autograd import Variable
 def normal_std(x):
     return x.std() * np.sqrt((len(x) - 1.)/(len(x)))
 
-class DataLoaderS(object):
+class DataLoader(object):
     # train and valid is the ratio of training set and validation set. test = 1 - train - valid
     def __init__(self, file_name, train, valid, device, horizon, window, normalize=2):
         self.P = window
