@@ -5,8 +5,9 @@ import os
 import glob
 import pandas as pd
 import scipy.sparse as sp
-import torch
 from scipy.sparse import linalg
+from statsmodels.tsa.stattools import adfuller
+import torch
 from torch.autograd import Variable
 import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
@@ -17,7 +18,7 @@ def normal_std(x):
 
 class DataLoader(object):
 
-    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int):
+    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool):
 
         data_files = glob.glob(os.path.join(data_directory, f"*{time_interval}*.csv"))
 
@@ -35,6 +36,14 @@ class DataLoader(object):
         self.raw_data = pd.concat(currencies_data.values(), axis = 1)
         self.raw_data.index = pd.to_datetime(self.raw_data.index)
         self._build_data_features()
+
+        self.raw_data.dropna(inplace = True)
+
+        # Stationarity checking
+        if stationary_check:
+            self._check_stationarity()
+            self._check_cointegration()
+            self._noise_removal()
 
 
         self.data = np.zeros(self.raw_data.shape)
@@ -73,6 +82,26 @@ class DataLoader(object):
         '''
         Build features based on the entirety of data
         '''
+        pass
+
+    def _check_stationarity(self):
+        '''
+        Check stationarity of each column by the ADF test (Alternate hypothesis being the time series is stationary)
+        '''
+
+        self.stationary_vars = []
+        p_value_threshold = 0.05
+
+        for col in self.raw_data.columns:
+            adftest = adfuller(self.raw_data[col], autolag = "AIC", regression = "CT")
+            if adftest[1] < p_value_threshold:
+                self.stationary_vars.append(col)
+
+
+    def _check_cointegration(self):
+        pass
+
+    def _noise_removal(self):
         pass
 
     def _normalized(self, normalize: int):
