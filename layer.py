@@ -8,6 +8,10 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+
 
 class Linear(nn.Module):
     r"""An implementation of the linear layer, conducting 2D convolution.
@@ -413,3 +417,56 @@ class MTGNNLayer(nn.Module):
         X = X + X_residual[:, :, :, -X.size(3) :]
         X = self._normalization(X, idx)
         return X, X_skip
+    
+
+# Load CSV files
+df1 = pd.read_csv('BNBUSDT1h.csv', parse_dates=['time'])
+df2 = pd.read_csv('BTCUSDT1h.csv', parse_dates=['time'])
+df3 = pd.read_csv('ETHUSDT1h.csv', parse_dates=['time'])
+df4 = pd.read_csv('XRPUSDT1h.csv', parse_dates=['time'])
+
+# Select and rename price columns
+df1_prices = df1[['time', 'open']].rename(columns={'open': 'price_cc1'})
+df2_prices = df2[['time', 'open']].rename(columns={'open': 'price_cc2'})
+df3_prices = df3[['time', 'open']].rename(columns={'open': 'price_cc3'})
+df4_prices = df4[['time', 'open']].rename(columns={'open': 'price_cc4'})
+
+# Merge DataFrames on 'time'
+df = df1_prices.merge(df2_prices, on='time').merge(df3_prices, on='time').merge(df4_prices, on='time')
+
+# Set 'time' as index
+df.set_index('time', inplace=True)
+
+# Calculate percentage changes
+for col in ['price_cc1', 'price_cc2', 'price_cc3', 'price_cc4']:
+    df[f'{col}_pct_change'] = df[col].pct_change()
+
+# Drop NaN values
+df.dropna(inplace=True)
+
+# Normalize prices - maybe not needed
+scaler = MinMaxScaler()
+normalized_prices = scaler.fit_transform(df[['price_cc1', 'price_cc2', 'price_cc3', 'price_cc4']])
+df_normalized = pd.DataFrame(normalized_prices, columns=['price_cc1', 'price_cc2', 'price_cc3', 'price_cc4'], index=df.index)
+
+# Convert to PyTorch tensor
+node_features = torch.FloatTensor(df_normalized.values)
+
+# Create indices for nodes
+node_indices = torch.LongTensor(np.arange(node_features.shape[1]))
+
+# Initialize GraphConstructor
+nnodes = node_features.shape[1]  
+k = 2  
+dim = node_features.shape[1]  
+alpha = 1.0  
+
+# Instantiate GraphConstructor
+graph_constructor = GraphConstructor(nnodes=nnodes, k=k, dim=dim, alpha=alpha)
+
+# Forward pass to construct adjacency matrix
+adjacency_matrix = graph_constructor(node_indices)
+
+# Check the output
+print(adjacency_matrix.shape)  # Should be [nnodes, nnodes]
+print(adjacency_matrix)
