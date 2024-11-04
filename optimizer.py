@@ -2,34 +2,45 @@ import torch
 import torch.optim as optim
 
 class Optim(object):
+    def __init__(self, params, method, lr, clip, lr_decay=1.0, start_decay_at=None):
+        """
+        Initialize the optimizer.
 
-    def _makeOptimizer(self):
-        if self.method == 'sgd':
-            self.optimizer = optim.SGD(self.params, lr=self.lr, weight_decay=self.lr_decay)
-        elif self.method == 'adagrad':
-            self.optimizer = optim.Adagrad(self.params, lr=self.lr, weight_decay=self.lr_decay)
-        elif self.method == 'adadelta':
-            self.optimizer = optim.Adadelta(self.params, lr=self.lr, weight_decay=self.lr_decay)
-        elif self.method == 'adam':
-            self.optimizer = optim.Adam(self.params, lr=self.lr, weight_decay=self.lr_decay)
-        else:
-            raise RuntimeError("Invalid optim method: " + self.method)
-
-    def __init__(self, params, method, lr, clip, lr_decay=1, start_decay_at=None):
-        self.params = params  # careful: params may be a generator
-        self.last_ppl = None
+        Args:
+            params: Parameters to optimize (can be a generator).
+            method (str): Optimization method (e.g., 'sgd', 'adam').
+            lr (float): Learning rate.
+            clip (float): Gradient clipping value.
+            lr_decay (float): Factor by which to decay the learning rate.
+            start_decay_at (int, optional): Epoch at which to start decaying the learning rate.
+        """
+        self.params = params  
         self.lr = lr
         self.clip = clip
         self.method = method
         self.lr_decay = lr_decay
         self.start_decay_at = start_decay_at
+        self.last_ppl = None
         self.start_decay = False
 
-        self._makeOptimizer()
+        self.optimizer = self._make_optimizer()
+
+    def _make_optimizer(self):
+        """Create the optimizer based on the specified method."""
+        optimizer_methods = {
+            'sgd': optim.SGD,
+            'adagrad': optim.Adagrad,
+            'adadelta': optim.Adadelta,
+            'adam': optim.Adam
+        }
+
+        if self.method not in optimizer_methods:
+            raise RuntimeError(f"Invalid optimization method: {self.method}")
+
+        return optimizer_methods[self.method](self.params, lr=self.lr, weight_decay=self.lr_decay)
 
     def step(self):
-        # Compute gradients norm.
-        grad_norm = 0
+        """Perform a single optimization step."""
         if self.clip is not None:
             torch.nn.utils.clip_grad_norm_(self.params, self.clip)
 
@@ -45,22 +56,29 @@ class Optim(object):
         # for param in self.params:
         #     if shrinkage < 1:
         #         param.grad.data.mul_(shrinkage)
+        
         self.optimizer.step()
-        return  grad_norm
+        return self.optimizer.state.get('grad_norm', 0)  # Placeholder for gradient norm if needed
 
-    # decay learning rate if val perf does not improve or we hit the start_decay_at limit
-    def updateLearningRate(self, ppl, epoch):
+    def update_learning_rate(self, ppl, epoch):
+        """
+        Update the learning rate based on validation performance.
+
+        Args:
+            ppl (float): Perplexity or validation performance metric.
+            epoch (int): Current epoch number.
+        """
         if self.start_decay_at is not None and epoch >= self.start_decay_at:
             self.start_decay = True
         if self.last_ppl is not None and ppl > self.last_ppl:
             self.start_decay = True
 
         if self.start_decay:
-            self.lr = self.lr * self.lr_decay
-            print("Decaying learning rate to %g" % self.lr)
-        #only decay for one epoch
-        self.start_decay = False
+            self.lr *= self.lr_decay
+            print(f"Decaying learning rate to {self.lr:.6g}")
+
+            # Recreate the optimizer with the updated learning rate
+            self.optimizer = self._make_optimizer()
 
         self.last_ppl = ppl
-
-        self._makeOptimizer()
+        self.start_decay = False  # Reset after one decay
