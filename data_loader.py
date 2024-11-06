@@ -63,6 +63,7 @@ class DataLoader(object):
 
         self.n, self.m = self.data.shape
 
+
         self.P = window
         self.h = horizon
         self.normalize = normalize
@@ -92,47 +93,13 @@ class DataLoader(object):
             data (pd.DataFrame): Data for the currency
         '''
 
-        data['price_range'] = data['high'] - data['low']
-        data['price_spread'] = data['close'] - data['open']
-        data['high_low_ratio'] = data['high'] / data['low']
-        data['close_open_ratio'] = data['close'] / data['open']
-        
-        # Returns
-        data['returns'] = data['close'].pct_change()
-        data['log_returns'] = np.log1p(data['returns'])
 
         windows = [5, 10, 20]
-
-        for window in windows:
-            data[f'rolling_mean_{window}'] = data['close'].rolling(window).mean()
-            data[f'rolling_std_{window}'] = data['close'].rolling(window).std()
-            data[f'rolling_min_{window}'] = data['close'].rolling(window).min()
-            data[f'rolling_max_{window}'] = data['close'].rolling(window).max()
         
         data['volume_quote_ratio'] = data['volume'] / data['quote_volume']
         data['buy_sell_volume_ratio'] = data['buy_base_vol'] / data['volume']
         data['buy_sell_quote_ratio'] = data['buy_quote_vol'] / data['quote_volume']
-
-        for window in windows:
-            data[f'volume_sma_{window}'] = data['volume'].rolling(window).mean()
-            data[f'volume_std_{window}'] = data['volume'].rolling(window).std()
-            data[f'volume_quote_sma_{window}'] = data['quote_volume'].rolling(window).mean()
         
-        bb = BollingerBands(close = data['close'])
-        data['bb_high'] = bb.bollinger_hband()
-        data['bb_low'] = bb.bollinger_lband()
-        data['bb_mid'] = bb.bollinger_mavg()
-        data['bb_width'] = (data['bb_high'] - data['bb_low']) / data['bb_mid']
-        
-        # RSI
-        rsi = RSIIndicator(close=data['close'])
-        data['rsi'] = rsi.rsi()
-        
-        # MACD
-        macd = MACD(close=data['close'])
-        data['macd'] = macd.macd()
-        data['macd_signal'] = macd.macd_signal()
-        data['macd_diff'] = macd.macd_diff()
         
         # Stochastic Oscillator
         stoch = StochasticOscillator(high = data['high'], low = data['low'], close = data['close'])
@@ -160,9 +127,6 @@ class DataLoader(object):
         data['avg_trade_size'] = data['volume'] / data['trades']
         data['avg_trade_quote_size'] = data['quote_volume'] / data['trades']
         
-        for window in windows:
-            data[f'trades_sma_{window}'] = data['trades'].rolling(window).mean()
-            data[f'avg_trade_size_sma_{window}'] = data['avg_trade_size'].rolling(window).mean()
 
         data.drop(columns = ["open", "high", "low"], inplace = True)
 
