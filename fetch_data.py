@@ -99,7 +99,6 @@ if __name__ == "__main__":
     parser.add_argument("--interval", action = "store", default = "1h", help = "Data Interval (e.g., 1m, 1h, 1d)")
 
     args = parser.parse_args()
-
     if not args.symbols:
         print("Please insert symbols that you want")
         exit()
