@@ -94,7 +94,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
 
 def main(args):
 
-    Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize)
+    Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize, stationary_check = args.stationarity, noise_removal = args.noise_removal)
 
     model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
                   device, dropout = args.dropout, subgraph_size = args.subgraph_size,
