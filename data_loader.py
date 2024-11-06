@@ -70,6 +70,14 @@ class DataLoader(object):
         exit()
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
+        price_change = data["close"].pct_change()
+        data["price_change"] = price_change
+        data['daily_volatility'] = (data ['high'] - data['low']) / data['close']
+        data ['SMA_5'] = price_change.rolling(window = 5).mean()
+        data ['SMA_10'] = price_change.rolling(window = 10).mean()
+        data ['volume_change'] = data['volume'].pct_change()
+        data ['buy_sell_ratio'] = data['buy_base_vol'] / data['buy_quote_vol']
+        
         '''
         Build same features for each currency
         Args:
