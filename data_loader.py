@@ -73,8 +73,8 @@ class DataLoader(object):
         exit()
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
-        price_change = data["close"].pct_change()
-        data["price_change"] = price_change
+        price_change = data['close'].pct_change()
+        data['price_change'] = price_change
         data['daily_volatility'] = (data ['high'] - data['low']) / data['close']
         data ['SMA_5'] = price_change.rolling(window = 5).mean()
         data ['SMA_10'] = price_change.rolling(window = 10).mean()
