@@ -78,108 +78,97 @@ class DataLoader(object):
         exit()
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
-        # price_change = data['close'].pct_change()
-        # data['price_change'] = price_change
-        # data['daily_volatility'] = (data ['high'] - data['low']) / data['close']
-        # data ['SMA_5'] = price_change.rolling(window = 5).mean()
-        # data ['SMA_10'] = price_change.rolling(window = 10).mean()
-        # data ['volume_change'] = data['volume'].pct_change()
-        # data ['buy_sell_ratio'] = data['buy_base_vol'] / data['buy_quote_vol']
-
-        self.df['price_range'] = self.df['high'] - self.df['low']
-        self.df['price_spread'] = self.df['close'] - self.df['open']
-        self.df['high_low_ratio'] = self.df['high'] / self.df['low']
-        self.df['close_open_ratio'] = self.df['close'] / self.df['open']
-        
-        # Returns
-        self.df['returns'] = self.df['close'].pct_change()
-        self.df['log_returns'] = np.log1p(self.df['returns'])
-
-        windows = [5, 10, 20]
-        for window in windows:
-            self.df[f'rolling_mean_{window}'] = self.df['close'].rolling(window).mean()
-            self.df[f'rolling_std_{window}'] = self.df['close'].rolling(window).std()
-            self.df[f'rolling_min_{window}'] = self.df['close'].rolling(window).min()
-            self.df[f'rolling_max_{window}'] = self.df['close'].rolling(window).max()
-        
-        self.df['volume_quote_ratio'] = self.df['volume'] / self.df['quote_volume']
-        self.df['buy_sell_volume_ratio'] = self.df['buy_base_vol'] / self.df['volume']
-        self.df['buy_sell_quote_ratio'] = self.df['buy_quote_vol'] / self.df['quote_volume']
-
-        for window in windows:
-            self.df[f'volume_sma_{window}'] = self.df['volume'].rolling(window).mean()
-            self.df[f'volume_std_{window}'] = self.df['volume'].rolling(window).std()
-            self.df[f'volume_quote_sma_{window}'] = self.df['quote_volume'].rolling(window).mean()
-        
-        bb = BollingerBands(close=self.df['close'])
-        self.df['bb_high'] = bb.bollinger_hband()
-        self.df['bb_low'] = bb.bollinger_lband()
-        self.df['bb_mid'] = bb.bollinger_mavg()
-        self.df['bb_width'] = (self.df['bb_high'] - self.df['bb_low']) / self.df['bb_mid']
-        
-        # RSI
-        rsi = RSIIndicator(close=self.df['close'])
-        self.df['rsi'] = rsi.rsi()
-        
-        # MACD
-        macd = MACD(close=self.df['close'])
-        self.df['macd'] = macd.macd()
-        self.df['macd_signal'] = macd.macd_signal()
-        self.df['macd_diff'] = macd.macd_diff()
-        
-        # Stochastic Oscillator
-        stoch = StochasticOscillator(high=self.df['high'], low=self.df['low'], close=self.df['close'])
-        self.df['stoch_k'] = stoch.stoch()
-        self.df['stoch_d'] = stoch.stoch_signal()
-        
-        # VWAP
-        vwap = VolumeWeightedAveragePrice(high=self.df['high'], low=self.df['low'], 
-                                         close=self.df['close'], volume=self.df['volume'])
-        self.df['vwap'] = vwap.volume_weighted_average_price()
-
-        for window in windows:
-            # Parkinson Volatility
-            self.df[f'parkinson_vol_{window}'] = np.sqrt(
-                (1.0 / (4.0 * np.log(2.0))) * 
-                (np.log(self.df['high'] / self.df['low'])**2).rolling(window).mean()
-            )
-            
-            # Garman-Klass Volatility
-            self.df[f'garman_klass_vol_{window}'] = np.sqrt(
-                (0.5 * np.log(self.df['high'] / self.df['low'])**2) -
-                (2.0 * np.log(2.0) - 1.0) * (np.log(self.df['close'] / self.df['open'])**2)
-            ).rolling(window).mean()
-        
-        self.df['avg_trade_size'] = self.df['volume'] / self.df['trades']
-        self.df['avg_trade_quote_size'] = self.df['quote_volume'] / self.df['trades']
-        
-        for window in windows:
-            self.df[f'trades_sma_{window}'] = self.df['trades'].rolling(window).mean()
-            self.df[f'avg_trade_size_sma_{window}'] = self.df['avg_trade_size'].rolling(window).mean()
-
-        self.df.index = pd.to_datetime(self.df.index)
-    
-        # Time-based features
-        self.df['hour'] = self.df.index.hour
-        self.df['day_of_week'] = self.df.index.dayofweek
-        self.df['day_of_month'] = self.df.index.day
-        self.df['week_of_year'] = self.df.index.isocalendar().week
-        self.df['month'] = self.df.index.month
-        self.df['year'] = self.df.index.year
-        
         '''
         Build same features for each currency
         Args:
             currency (str): Currency
             data (pd.DataFrame): Data for the currency
         '''
-        pass
+
+        data['price_range'] = data['high'] - data['low']
+        data['price_spread'] = data['close'] - data['open']
+        data['high_low_ratio'] = data['high'] / data['low']
+        data['close_open_ratio'] = data['close'] / data['open']
+        
+        # Returns
+        data['returns'] = data['close'].pct_change()
+        data['log_returns'] = np.log1p(data['returns'])
+
+        windows = [5, 10, 20]
+
+        for window in windows:
+            data[f'rolling_mean_{window}'] = data['close'].rolling(window).mean()
+            data[f'rolling_std_{window}'] = data['close'].rolling(window).std()
+            data[f'rolling_min_{window}'] = data['close'].rolling(window).min()
+            data[f'rolling_max_{window}'] = data['close'].rolling(window).max()
+        
+        data['volume_quote_ratio'] = data['volume'] / data['quote_volume']
+        data['buy_sell_volume_ratio'] = data['buy_base_vol'] / data['volume']
+        data['buy_sell_quote_ratio'] = data['buy_quote_vol'] / data['quote_volume']
+
+        for window in windows:
+            data[f'volume_sma_{window}'] = data['volume'].rolling(window).mean()
+            data[f'volume_std_{window}'] = data['volume'].rolling(window).std()
+            data[f'volume_quote_sma_{window}'] = data['quote_volume'].rolling(window).mean()
+        
+        bb = BollingerBands(close = data['close'])
+        data['bb_high'] = bb.bollinger_hband()
+        data['bb_low'] = bb.bollinger_lband()
+        data['bb_mid'] = bb.bollinger_mavg()
+        data['bb_width'] = (data['bb_high'] - data['bb_low']) / data['bb_mid']
+        
+        # RSI
+        rsi = RSIIndicator(close=data['close'])
+        data['rsi'] = rsi.rsi()
+        
+        # MACD
+        macd = MACD(close=data['close'])
+        data['macd'] = macd.macd()
+        data['macd_signal'] = macd.macd_signal()
+        data['macd_diff'] = macd.macd_diff()
+        
+        # Stochastic Oscillator
+        stoch = StochasticOscillator(high = data['high'], low = data['low'], close = data['close'])
+        data['stoch_k'] = stoch.stoch()
+        data['stoch_d'] = stoch.stoch_signal()
+        
+        # VWAP
+        vwap = VolumeWeightedAveragePrice(high = data['high'], low = data['low'],
+                                         close = data['close'], volume = data['volume'])
+        data['vwap'] = vwap.volume_weighted_average_price()
+
+        for window in windows:
+            # Parkinson Volatility
+            data[f'parkinson_vol_{window}'] = np.sqrt(
+                (1.0 / (4.0 * np.log(2.0))) * 
+                (np.log(data['high'] / data['low']) ** 2).rolling(window).mean()
+            )
+            
+            # Garman-Klass Volatility
+            data[f'garman_klass_vol_{window}'] = np.sqrt(
+                (0.5 * np.log(data['high'] / data['low']) ** 2) -
+                (2.0 * np.log(2.0) - 1.0) * (np.log(data['close'] / data['open']) ** 2)
+            ).rolling(window).mean()
+        
+        data['avg_trade_size'] = data['volume'] / data['trades']
+        data['avg_trade_quote_size'] = data['quote_volume'] / data['trades']
+        
+        for window in windows:
+            data[f'trades_sma_{window}'] = data['trades'].rolling(window).mean()
+            data[f'avg_trade_size_sma_{window}'] = data['avg_trade_size'].rolling(window).mean()
+
 
     def _build_data_features(self):
         '''
         Build features based on the entirety of data
         '''
-        pass
+        # Time-based features
+        self.raw_data['hour'] = self.raw_data.index.hour
+        self.raw_data['day_of_week'] = self.raw_data.index.dayofweek
+        self.raw_data['day_of_month'] = self.raw_data.index.day
+        self.raw_data['week_of_year'] = self.raw_data.index.isocalendar().week
+        self.raw_data['month'] = self.raw_data.index.month
+        self.raw_data['year'] = self.raw_data.index.year
 
     def _check_stationarity(self):
         '''
