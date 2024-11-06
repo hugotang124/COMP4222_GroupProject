@@ -4,6 +4,7 @@ import numpy as np
 import os
 import glob
 import pandas as pd
+from datetime import datetime
 import scipy.sparse as sp
 from scipy.sparse import linalg
 from statsmodels.tsa.stattools import adfuller
@@ -21,7 +22,10 @@ from ta.volume import VolumeWeightedAveragePrice
 def normal_std(x):
     return x.std() * np.sqrt((len(x) - 1.)/(len(x)))
 
+
 class DataLoader(object):
+
+    start_time = datetime(2021, 10, 1)
 
     def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool, noise_removal: bool):
 
@@ -32,29 +36,31 @@ class DataLoader(object):
             exit()
 
         self.currencies = list(map(lambda x: os.path.split(x)[-1].replace(f"{time_interval}.csv", ""), data_files))
-        currencies_data = dict(map(lambda x: (x[0], pd.read_csv(x[1], index_col = 0)), zip(self.currencies, data_files)))
+        currencies_data = dict(map(lambda x: (x[0], pd.read_csv(x[1], index_col = 0, parse_dates = True)), zip(self.currencies, data_files)))
 
         for currency, data in currencies_data.items():
             self._build_currency_features(currency, data)
             data.columns = [f"{currency.lower()}_{x}" for x in data.columns]
 
         self.raw_data = pd.concat(currencies_data.values(), axis = 1)
-        self.raw_data.index = pd.to_datetime(self.raw_data.index)
         self._build_data_features()
+        self.raw_data = self.raw_data.loc[self.start_time:]
+        self.raw_data.dropna(axis = 1, inplace = True)
 
-        self.raw_data.dropna(inplace = True)
 
         # Stationarity checking
         if stationary_check:
             self._check_stationarity()
             self._check_cointegration()
 
-
-        if noise_removal:
-            self._noise_removal()
-
-
         self.data = np.zeros(self.raw_data.shape)
+        if noise_removal:
+            for i in range(self.raw_data.shape[1]):
+                self.data[i, :] = self._noise_removal(self.raw_data.iloc[i, :].to_numpy())
+        else:
+            self.data = self.raw_data.to_numpy()
+
+
         self.n, self.m = self.data.shape
 
         self.P = window
@@ -63,6 +69,8 @@ class DataLoader(object):
         self.scale = np.ones([3, self.m])
         self._split(train, valid)
         self._normalized(normalize)
+
+
 
         self.scale = torch.from_numpy(self.scale).float()
         tmp = self.test[1] * self.scale[-1, :].expand(self.test[1].size(0), self.m)
@@ -75,7 +83,6 @@ class DataLoader(object):
         self.rae = torch.mean(torch.abs(tmp - torch.mean(tmp)))
 
         self.device = device
-        exit()
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
         '''
@@ -157,18 +164,28 @@ class DataLoader(object):
             data[f'trades_sma_{window}'] = data['trades'].rolling(window).mean()
             data[f'avg_trade_size_sma_{window}'] = data['avg_trade_size'].rolling(window).mean()
 
+        data.drop(columns = ["open", "high", "low"], inplace = True)
+
 
     def _build_data_features(self):
         '''
         Build features based on the entirety of data
         '''
         # Time-based features
-        self.raw_data['hour'] = self.raw_data.index.hour
-        self.raw_data['day_of_week'] = self.raw_data.index.dayofweek
-        self.raw_data['day_of_month'] = self.raw_data.index.day
-        self.raw_data['week_of_year'] = self.raw_data.index.isocalendar().week
-        self.raw_data['month'] = self.raw_data.index.month
-        self.raw_data['year'] = self.raw_data.index.year
+        time_df = pd.DataFrame(
+            {
+                "year": self.raw_data.index.year,
+                "month": self.raw_data.index.month,
+                "day": self.raw_data.index.day,
+                "hour": self.raw_data.index.hour,
+                "day_of_week": self.raw_data.index.dayofweek,
+                "week_of_year": self.raw_data.index.isocalendar().week
+            }
+        )
+        time_df = time_df.astype(int)
+
+        self.raw_data = pd.concat([self.raw_data, time_df], axis = 1)
+
 
     def _check_stationarity(self):
         '''
@@ -187,16 +204,17 @@ class DataLoader(object):
     def _check_cointegration(self):
         pass
 
-    def _noise_removal(self, signal: pd.Series, window: int = 100):
+    def _noise_removal(self, signal: np.ndarray, window: int = 100):
         '''
         Remove noise by using moving average filter
         Args:
             signal (pd.Series): Pandas Series to be smoothened with moving average filter
             window (int): Number of rows accounted for calculating the moving average
         '''
+
         return np.convolve(signal, np.ones(window) / window, mode = 'same')
 
-    def _normalized(self, normalize: int):
+    def _normalized(self, normalize: int = 1):
         '''
         Normalize data with one of the multiple methods
         Args:
@@ -248,7 +266,7 @@ class DataLoader(object):
         for i in range(n):
             end = idx_set[i] - self.h + 1
             start = end - self.P
-            X[i, :, :] = torch.from_numpy(self.raw_data.iloc[start:end, :].to_numpy())
+            X[i, :, :] = torch.from_numpy(self.data[start:end, :])
             Y[i, :] = torch.from_numpy(self.raw_data.iloc[idx_set[i], :].to_numpy())
         return [X, Y]
 
