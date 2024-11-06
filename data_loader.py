@@ -18,7 +18,7 @@ def normal_std(x):
 
 class DataLoader(object):
 
-    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool):
+    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool, noise_removal: bool):
 
         data_files = glob.glob(os.path.join(data_directory, f"*{time_interval}*.csv"))
 
@@ -43,6 +43,9 @@ class DataLoader(object):
         if stationary_check:
             self._check_stationarity()
             self._check_cointegration()
+
+
+        if noise_removal:
             self._noise_removal()
 
 
@@ -109,8 +112,14 @@ class DataLoader(object):
     def _check_cointegration(self):
         pass
 
-    def _noise_removal(self):
-        pass
+    def _noise_removal(self, signal: pd.Series, window: int = 100):
+        '''
+        Remove noise by using moving average filter
+        Args:
+            signal (pd.Series): Pandas Series to be smoothened with moving average filter
+            window (int): Number of rows accounted for calculating the moving average
+        '''
+        return np.convolve(signal, np.ones(window) / window, mode = 'same')
 
     def _normalized(self, normalize: int):
         '''
