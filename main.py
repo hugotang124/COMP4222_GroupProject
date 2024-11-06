@@ -213,6 +213,7 @@ if __name__ == "__main__":
     parser.add_argument('--L1Loss', type = bool, default = True)
     parser.add_argument('--normalize', type = int, default = 2)
     parser.add_argument("--stationarity", type = bool, default = False)
+    parser.add_argument("--noise-removal", type = bool , default = False)
     parser.add_argument('--gcn_true', type = bool, default = True, help = 'whether to add graph convolution layer')
     parser.add_argument('--buildA_true', type = bool, default = True, help = 'whether to construct adaptive adjacency matrix')
     parser.add_argument('--gcn_depth', type = int, default = 2, help = 'graph convolution depth')
