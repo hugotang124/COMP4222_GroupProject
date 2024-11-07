@@ -408,7 +408,14 @@ class MTGNNLayer(nn.Module):
         X_gate = torch.sigmoid(X_gate)
         X = X_filter * X_gate
         X = F.dropout(X, self._dropout, training = training)
-        X_skip = self._skip_conv(X) + X_skip
+        
+        X_skip_conv = self._skip_conv(X) #added this to remove error
+    
+        if X_skip_conv.shape[3] != X_skip.shape[3]: #added this to remove error
+            if X_skip_conv.shape[3] > X_skip.shape[3]: #added this to remove error
+                X_skip_conv = X_skip_conv[:, :, :, :X_skip.shape[3]] #added this to remove error
+                
+        X_skip = X_skip_conv + X_skip
         if self._gcn_true:
             X = self._mixprop_conv1(X, A_tilde) + self._mixprop_conv2(X, A_tilde.transpose(1, 0))
         else:
