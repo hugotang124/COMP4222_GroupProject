@@ -234,19 +234,22 @@ class DataLoader(object):
             Y[i, :] = torch.from_numpy(self.raw_data.iloc[idx_set[i], :].to_numpy())
         return [X, Y]
 
-    def get_batches(self, inputs, targets, batch_size, shuffle = True):
+    def get_batches(self, inputs, targets, batch_size, shuffle=True):
         length = len(inputs)
         if shuffle:
             index = torch.randperm(length)
         else:
-            index = torch.LongTensor(range(length))
+            index = torch.arange(length)  # More efficient than LongTensor
+
         start_idx = 0
-        while (start_idx < length):
+        while start_idx < length:
             end_idx = min(length, start_idx + batch_size)
             excerpt = index[start_idx:end_idx]
-            X = inputs[excerpt]
-            Y = targets[excerpt]
-            X = X.to(self.device)
-            Y = Y.to(self.device)
-            yield Variable(X), Variable(Y)
+            
+            # Ensure inputs and targets are tensors
+            X = inputs[excerpt].to(self.device)
+            Y = targets[excerpt].to(self.device)
+            
+            yield X, Y  # No need for Variable
+
             start_idx += batch_size
