@@ -101,19 +101,21 @@ def main(args):
     print("Finish preprocessing data")
     print("Start loading model")
 
+    kernel_set_pass = [1,1]
+    kernel_size = 5
+    layer_norm_affline = False
     # Mising kernel set and kernel size
     model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
-                  device, kernel_set = [1, 1], kernel_size = 7, dropout = args.dropout, subgraph_size = args.subgraph_size,
-                  node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
-                  conv_channels = args.conv_channels, residual_channels = args.residual_channels,
-                  skip_channels = args.skip_channels, end_channels = args.end_channels,
-                  seq_length = args.seq_in_len, in_dim = args.in_dim, out_dim = args.seq_out_len,
-                  layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, layer_norm_affline = False)
+                  kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
+                  args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
+                  args.skip_channels, args.end_channels,
+                  args.seq_in_len, args.in_dim, args.seq_out_len,
+                  args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
 
     model = model.to(device)
 
     print(args)
-    print("The recpetive field size is", model.receptive_field)
+    print("The receptive field size is", model._receptive_field)
     nParams = sum([p.nelement() for p in model.parameters()])
     print("Number of model parameters is", nParams, flush=True)
 
