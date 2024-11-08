@@ -78,7 +78,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             ty = Y[:, id]
             output = model(tx,id)
             output = torch.squeeze(output)
-            output = output.mean(dim=2)
+            output = output.mean(dim=2) #change this method if needed to max or anything else -> output has dimension (32,2,125) needs to be (32,2)
             scale = data.scale.expand(output.size(0), data.m)
             scale = scale[:,id]
             loss = criterion(output * scale, ty * scale)
