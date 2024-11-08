@@ -78,6 +78,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             ty = Y[:, id]
             output = model(tx,id)
             output = torch.squeeze(output)
+            output = output.mean(dim=2)
             scale = data.scale.expand(output.size(0), data.m)
             scale = scale[:,id]
             loss = criterion(output * scale, ty * scale)
@@ -239,7 +240,7 @@ if __name__ == "__main__":
     parser.add_argument("--seq_out_len", type = int, default = 1, help = "output sequence length")
     parser.add_argument("--horizon", type = int, default = 3)
     parser.add_argument("--layers", type = int, default = 5, help = "number of layers")
-    parser.add_argument("--batch_size", type = int, default = 32, help = "batch size")
+    parser.add_argument("--batch_size", type = int, default = 3, help = "batch size")
     parser.add_argument("--lr", type = float, default = 0.0001, help = "learning rate")
     parser.add_argument("--weight_decay", type = float, default = 0.00001, help = "weight decay rate")
     parser.add_argument("--clip", type = int, default = 5, help = "clip")
