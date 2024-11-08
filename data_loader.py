@@ -19,8 +19,96 @@ from ta.trend import EMAIndicator, MACD
 from ta.volume import VolumeWeightedAveragePrice
 
 
-def normal_std(x):
+def normal_std(x: torch.FloatTensor) -> float:
     return x.std() * np.sqrt((len(x) - 1.)/(len(x)))
+
+class StandardScaler():
+    def __init__(self, mean: torch.FloatTensor, std: torch.FloatTensor, device: str):
+        """
+        Standardisation scaler for data
+
+        Arg types:
+            **mean** (PyTorch Float Tensor): Mean matrix of data
+            **std** (PyTorch Float Tensor): Standard deviation matrix of data
+            device (str): Device used for model training
+        """
+        self.mean = mean.to(device)
+        self.std = std.to(device)
+
+    def transform(self, data: torch.FloatTensor) -> torch.FloatTensor:
+        '''
+        Transformation with standardisation
+
+        Arg types:
+            **data*8 (PyTorch Float Tensor): Data.
+
+        Return types:
+            **X** (PyTorch Float Tensor): Standardised Tensor.
+        '''
+        return (data - self.mean) / self.std
+
+    def inverse_transform(self, data: torch.FloatTensor, id: torch.Tensor = None) -> torch.FloatTensor:
+        '''
+        Inverse transformation of standardisation regarding output
+
+        Arg types:
+            data (PyTorch Float Tensor): Data
+            id (PyTorch Tensor):  Input indices, a permutation of the num_nodes, default None.
+
+        Return types:
+            **X** (PyTorch Float Tensor): Standardised Tensor
+        '''
+
+        tmp_std = self.std.expand(data.size(0), data.size(1))
+        tmp_mean = self.mean.expand(data.size(0), data.size(1))
+
+        if id is None:
+            return (data * tmp_std) + tmp_mean
+
+        return (data * tmp_std[:, id]) + tmp_mean[:, id]
+
+class MaxScaler():
+    def __init__(self, max: torch.FloatTensor, device: str):
+        """
+        Max value standardisation scaler for data
+
+        Arg types:
+            **max** (PyTorch Float Tensor): Max matrix of data
+            device (str): Device used for model training
+        """
+
+        self.max = max.to(device)
+
+    def transform(self, data: torch.FloatTensor) -> torch.FloatTensor:
+        '''
+        Transformation with max value standardisation
+
+        Arg types:
+            **data*8 (PyTorch Float Tensor): Data.
+
+        Return types:
+            **X** (PyTorch Float Tensor): Standardised Tensor.
+        '''
+
+        return data / self.max
+
+    def inverse_transform(self, data: torch.FloatTensor, id: torch.Tensor = None) -> torch.FloatTensor:
+        '''
+        Inverse transformation of standardisation regarding output
+
+        Arg types:
+            data (PyTorch Float Tensor): Data
+            id (PyTorch Tensor):  Input indices, a permutation of the num_nodes, default None.
+
+        Return types:
+            **X** (PyTorch Float Tensor): Standardised Tensor
+        '''
+
+        tmp_max = self.max.expand(data.size(0), data.size(1))
+        if id is None:
+            return data * tmp_max
+
+        return data * tmp_max[:, id]
 
 
 class DataLoader(object):
@@ -43,10 +131,16 @@ class DataLoader(object):
             data.columns = [f"{currency.lower()}_{x}" for x in data.columns]
 
         self.raw_data = pd.concat(currencies_data.values(), axis = 1)
-        self._build_data_features()
         self.raw_data = self.raw_data.loc[self.start_time:]
         self.raw_data.dropna(axis = 1, inplace = True)
+        self.currencies = list(set(map(lambda x: x.split("_")[0], self.raw_data.columns)))
+        self._build_data_features()
 
+        # The current approach to make model training work
+        self.raw_data = self.raw_data[list(map(lambda x: x + "_close", self.currencies))]
+
+        # Save memory
+        currencies_data.clear()
 
         # Stationarity checking
         if stationary_check:
@@ -60,30 +154,20 @@ class DataLoader(object):
         else:
             self.data = self.raw_data.to_numpy()
 
-
         self.n, self.m = self.data.shape
-
+        print(f"There are {len(self.currencies)} currencies involved in the data.")
+        print(f"Dataframe Shape: {self.data.shape}")
 
         self.P = window
         self.h = horizon
         self.normalize = normalize
-        self.scale = np.ones([3, self.m])
         self._split(train, valid)
-        self._normalized(normalize)
-
-
-
-        self.scale = torch.from_numpy(self.scale).float()
-        tmp = self.test[1] * self.scale[-1, :].expand(self.test[1].size(0), self.m)
-
-        self.scale = self.scale.to(device)
-
-        self.scale = Variable(self.scale)
-
-        self.rse = normal_std(tmp)
-        self.rae = torch.mean(torch.abs(tmp - torch.mean(tmp)))
-
         self.device = device
+
+
+        self.rse = normal_std(self.test[1])
+        self.rae = torch.mean(torch.abs(self.test[1] - torch.mean(self.test[1])))
+
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
         '''
@@ -178,30 +262,36 @@ class DataLoader(object):
 
         return np.convolve(signal, np.ones(window) / window, mode = 'same')
 
-    def _normalized(self, normalize: int = 1):
+    def _normalized(self, X, Y, normalize: int = 1):
         '''
         Normalize data with one of the multiple methods
         Args:
             normalize (int): Normalization mode
         '''
+        if (normalize == 0):
+            data = data
+            X_scaler = StandardScaler(mean = 0, std = 1, device = self.device)
+            Y_scaler = StandardScaler(mean = 0, std = 1, device = self.device)
 
-        for i, (X, Y) in enumerate([self.train, self.valid, self.test]):
-            if (normalize == 0):
-                data = data
+        elif (normalize == 1):
+            # Standardisation
 
-            elif (normalize == 1):
-                # Standardisation
+            X_scaler = StandardScaler(mean = X.mean(dim = 1, keepdim = True),  std = X.std(dim = 1, keepdim = True), device = self.device)
+            X = X_scaler.transform(X)
+            del X_scaler
 
-                means = X.mean(dim = 1, keepdim = True)
-                stds = X.std(dim = 1, keepdim = True)
-                X = (X - means) / stds
+            Y_scaler = StandardScaler(mean = Y.mean(dim = 1, keepdim = True),  std = Y.std(dim = 1, keepdim = True), device = self.device)
 
-            elif (normalize == 2):
-                # Normalization based on the maximum of each column
-                # Need adjustment in the evaluation and training function regarding error calculation
+        elif (normalize == 2):
+            # Normalization based on the maximum of each column
 
-                self.scale[i, :] = X.max(dim = 1).values
-                X = X / X.max(dim = 1, keepdim = True)
+            X_scaler = MaxScaler(max = X.max(dim = 1).values, device = self.device)
+            X = X_scaler.transform(X)
+            del X_scaler
+
+            Y_scaler = MaxScaler(max = Y.max(dim = 1).values, device = self.device)
+
+        return X, Y, Y_scaler
 
     def _split(self, train: float, valid: float):
         '''
@@ -232,9 +322,10 @@ class DataLoader(object):
             start = end - self.P
             X[i, :, :] = torch.from_numpy(self.data[start:end, :])
             Y[i, :] = torch.from_numpy(self.raw_data.iloc[idx_set[i], :].to_numpy())
+
         return [X, Y]
 
-    def get_batches(self, inputs, targets, batch_size, shuffle=True):
+    def get_batches(self, inputs, targets, batch_size, shuffle = True):
         length = len(inputs)
         if shuffle:
             index = torch.randperm(length)
@@ -249,7 +340,10 @@ class DataLoader(object):
             # Ensure inputs and targets are tensors
             X = inputs[excerpt].to(self.device)
             Y = targets[excerpt].to(self.device)
-            
-            yield X, Y  # No need for Variable
+            X, Y, Y_scaler = self._normalized(X, Y, self.normalize)
+            X = X.to(self.device)
+            Y = Y.to(self.device)
+
+            yield X, Y, Y_scaler # No need for Variable
 
             start_idx += batch_size
