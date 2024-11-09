@@ -77,10 +77,14 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             tx = X[:, :, id, :]
             ty = Y[:, id]
             output = model(tx,id)
+            ty = ty.unsqueeze(2)  # Change shape to [32, num_sub, 1]
+            ty = ty.expand(-1, -1, model._receptive_field) 
             output = torch.squeeze(output)
-            output = output.mean(dim=2) #change this method if needed to max or anything else -> output has dimension (32,2,125) needs to be (32,2)
+            #output = output.mean(dim=2) #change this method if needed to max or anything else 
             scale = data.scale.expand(output.size(0), data.m)
             scale = scale[:,id]
+            scale = scale.unsqueeze(2)  # Change shape from [32, 2] to [32, 2, 1]
+            scale = scale.expand(-1, -1, model._receptive_field)  
             loss = criterion(output * scale, ty * scale)
             loss.backward()
             total_loss += loss.item()
