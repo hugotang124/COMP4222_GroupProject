@@ -1,10 +1,10 @@
 import argparse
 import math
 import time
-import os
 
 import torch
 import torch.nn as nn
+from net import MTGNN
 import numpy as np
 import importlib
 
@@ -20,7 +20,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     predict = None
     test = None
 
-    for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, False):
+    for X, Y in data.get_batches(X, Y, batch_size, False):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         with torch.no_grad():
@@ -35,10 +35,9 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
 
-        output = Y_scaler.inverse_transform(output)
-
-        total_loss += evaluateL2(output, Y).item()
-        total_loss_l1 += evaluateL1(output, Y).item()
+        scale = data.scale.expand(output.size(0), data.m)
+        total_loss += evaluateL2(output * scale, Y * scale).item()
+        total_loss_l1 += evaluateL1(output * scale, Y * scale).item()
         n_samples += (output.size(0) * data.m)
 
     rse = math.sqrt(total_loss / n_samples) / data.rse
@@ -61,10 +60,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
     total_loss = 0
     n_samples = 0
     iter = 0
-
-    track_time = time.time()
-
-    for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, True):
+    for X, Y in data.get_batches(X, Y, batch_size, True):
         model.zero_grad()
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
@@ -80,24 +76,20 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             id = torch.tensor(id).to(device)
             tx = X[:, :, id, :]
             ty = Y[:, id]
-
-            output = model(tx, idx = id)
+            output = model(tx,id)
             output = torch.squeeze(output)
-
-            output = Y_scaler.inverse_transform(output, id)
-            loss = criterion(output, ty)
+            output = output.mean(dim=2) #change this method if needed to max or anything else -> output has dimension (32,2,125) needs to be (32,2)
+            scale = data.scale.expand(output.size(0), data.m)
+            scale = scale[:,id]
+            loss = criterion(output * scale, ty * scale)
             loss.backward()
             total_loss += loss.item()
             n_samples += (output.size(0) * data.m)
             grad_norm = optim.step()
 
         if iter % 100 == 0:
-            curr_time = time.time()
-            print("iter:{:3d} | loss: {:.3f} | run time: {:.3f}".format(iter,loss.item() / (output.size(0) * data.m), curr_time - track_time))
-            curr_time = track_time
-
+            print("iter:{:3d} | loss: {:.3f}".format(iter,loss.item() / (output.size(0) * data.m)))
         iter += 1
-
     return total_loss / n_samples
 
 
@@ -110,27 +102,16 @@ def main(args):
     print("Finish preprocessing data")
     print("Start loading model")
 
-    # Version from pytorch_geometric_temporal
-    # from net import MTGNN
-    # kernel_set_pass = [1,1]
-    # kernel_size = 5
-    # layer_norm_affline = False
-    # model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
-    #               kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
-    #               args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
-    #               args.skip_channels, args.end_channels,
-    #               args.seq_in_len, args.in_dim, args.seq_out_len,
-    #               args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
-
-    # Version from nnzhan/MTGNN
-    from old_net import gtnet
-    model = gtnet(gcn_true = args.gcn_true, buildA_true = args.buildA_true, gcn_depth = args.gcn_depth, num_nodes = args.num_nodes,
-                  device = device, dropout = args.dropout, subgraph_size = args.subgraph_size,
-                  node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
-                  conv_channels = args.conv_channels, residual_channels = args.residual_channels,
-                  skip_channels = args.skip_channels, end_channels = args.end_channels,
-                  seq_length = args.seq_in_len, in_dim = args.in_dim, out_dim = args.seq_out_len,
-                  layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, layer_norm_affline = False)
+    kernel_set_pass = [1,1]
+    kernel_size = 5
+    layer_norm_affline = False
+    # Mising kernel set and kernel size
+    model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
+                  kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
+                  args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
+                  args.skip_channels, args.end_channels,
+                  args.seq_in_len, args.in_dim, args.seq_out_len,
+                  args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
 
     model = model.to(device)
 
@@ -138,9 +119,6 @@ def main(args):
     print("The receptive field size is", model._receptive_field)
     nParams = sum([p.nelement() for p in model.parameters()])
     print("Number of model parameters is", nParams, flush=True)
-
-    # Create directory to save model
-    os.makedirs(os.path.split(args.save)[0], exist_ok = True)
 
     if args.L1Loss:
         criterion = nn.L1Loss(size_average = False).to(device)
@@ -239,7 +217,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-directory", type = str, default = "./data/", help = "location of the data directory")
     parser.add_argument("--time_interval", type = str, default = "1h", help = "time interval of data")
     parser.add_argument("--log_interval", type = int, default = 2000, metavar = "N", help = "report interval")
-    parser.add_argument("--save", type = str, default = "./model/model.pt", help = "path to save the final model")
+    parser.add_argument("--save", type = str, default = "model/model.pt", help = "path to save the final model")
     parser.add_argument("--optim", type = str, default = "adam")
     parser.add_argument("--L1Loss", action = "store_true", default = True)
     parser.add_argument("--normalize", type = int, default = 1)
@@ -261,8 +239,8 @@ if __name__ == "__main__":
     parser.add_argument("--seq_in_len", type = int, default = 24 * 7, help = "input sequence length")
     parser.add_argument("--seq_out_len", type = int, default = 1, help = "output sequence length")
     parser.add_argument("--horizon", type = int, default = 3)
-    parser.add_argument("--layers", type = int, default = 3, help = "number of layers")
-    parser.add_argument("--batch_size", type = int, default = 32, help = "batch size")
+    parser.add_argument("--layers", type = int, default = 5, help = "number of layers")
+    parser.add_argument("--batch_size", type = int, default = 3, help = "batch size")
     parser.add_argument("--lr", type = float, default = 0.0001, help = "learning rate")
     parser.add_argument("--weight_decay", type = float, default = 0.00001, help = "weight decay rate")
     parser.add_argument("--clip", type = int, default = 5, help = "clip")
