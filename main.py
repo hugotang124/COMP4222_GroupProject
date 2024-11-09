@@ -221,7 +221,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-directory", type = str, default = "./data/", help = "location of the data directory")
     parser.add_argument("--time_interval", type = str, default = "1h", help = "time interval of data")
     parser.add_argument("--log_interval", type = int, default = 2000, metavar = "N", help = "report interval")
-    parser.add_argument("--save", type = str, default = "model/model.pt", help = "path to save the final model")
+    parser.add_argument("--save", type = str, default = "./model/model.pt", help = "path to save the final model")
     parser.add_argument("--optim", type = str, default = "adam")
     parser.add_argument("--L1Loss", action = "store_true", default = True)
     parser.add_argument("--normalize", type = int, default = 1)
