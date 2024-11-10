@@ -1,5 +1,5 @@
 import pickle
-from typing import List
+from typing import List, Optional
 import numpy as np
 import os
 import glob
@@ -77,7 +77,7 @@ class MaxScaler():
             device (str): Device used for model training
         """
 
-        self.max = max.to(device)
+        self.max = max.unsqueeze(1).to(device)
 
     def transform(self, data: torch.FloatTensor) -> torch.FloatTensor:
         '''
@@ -92,7 +92,7 @@ class MaxScaler():
 
         return data / self.max
 
-    def inverse_transform(self, data: torch.FloatTensor, id: torch.Tensor = None) -> torch.FloatTensor:
+    def inverse_transform(self, data: torch.FloatTensor, id: Optional[torch.Tensor] = None) -> torch.FloatTensor:
         '''
         Inverse transformation of standardisation regarding output
 
@@ -135,9 +135,6 @@ class DataLoader(object):
         self.raw_data.dropna(axis = 1, inplace = True)
         self.currencies = list(set(map(lambda x: x.split("_")[0], self.raw_data.columns)))
         self._build_data_features()
-
-        # The current approach to make model training work
-        self.raw_data = self.raw_data[list(map(lambda x: x + "_close", self.currencies))]
 
         # Save memory
         currencies_data.clear()
