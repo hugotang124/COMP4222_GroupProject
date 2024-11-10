@@ -10,6 +10,8 @@ import importlib
 
 from data_loader import DataLoader
 from optimizer import Optim
+from model import BaselineModels
+import torch.optim as optimizing
 
 
 def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
@@ -19,6 +21,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     n_samples = 0
     predict = None
     test = None
+    iter = 0
 
     for X, Y in data.get_batches(X, Y, batch_size, False):
         X = torch.unsqueeze(X, dim = 1)
@@ -26,6 +29,8 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         with torch.no_grad():
             output = model(X)
         output = torch.squeeze(output)
+        Y = Y.unsqueeze(2) 
+        Y = Y.expand(-1, -1, model._receptive_field) 
         if len(output.shape) == 1:
             output = output.unsqueeze(dim = 0)
         if predict is None:
@@ -35,22 +40,32 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
 
-        scale = data.scale.expand(output.size(0), data.m)
+        if output.size(0) > 2:
+            scale = data.scale.expand(output.size(0), data.m)
+
+        scale = torch.squeeze(scale)
+        scale = scale.unsqueeze(2) 
+        scale = scale.expand(-1, -1, model._receptive_field)
         total_loss += evaluateL2(output * scale, Y * scale).item()
         total_loss_l1 += evaluateL1(output * scale, Y * scale).item()
         n_samples += (output.size(0) * data.m)
+
+        if iter > 201:
+            break
+
+        iter += 1
 
     rse = math.sqrt(total_loss / n_samples) / data.rse
     rae = (total_loss_l1 / n_samples) / data.rae
 
     predict = predict.data.cpu().numpy()
     Ytest = test.data.cpu().numpy()
-    sigma_p = (predict).std(axis = 0)
-    sigma_g = (Ytest).std(axis = 0)
-    mean_p = predict.mean(axis = 0)
-    mean_g = Ytest.mean(axis = 0)
+    sigma_p = (predict).std(axis = (0,2))
+    sigma_g = (Ytest).std(axis = (0,2))
+    mean_p = predict.mean(axis = (0))
+    mean_g = Ytest.mean(axis = (0))
     index = (sigma_g != 0)
-    correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = 0) / (sigma_p * sigma_g)
+    correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = (0,2)) / (sigma_p * sigma_g)
     correlation = (correlation[index]).mean()
     return rse, rae, correlation
 
@@ -91,8 +106,12 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             n_samples += (output.size(0) * data.m)
             grad_norm = optim.step()
 
-        if iter % 100 == 0:
+        if iter % 10 == 0:
             print("iter:{:3d} | loss: {:.3f}".format(iter,loss.item() / (output.size(0) * data.m)))
+        
+        if iter > 201:
+            break
+
         iter += 1
     return total_loss / n_samples
 
@@ -106,74 +125,84 @@ def main(args):
     print("Finish preprocessing data")
     print("Start loading model")
 
-    kernel_set_pass = [1,1]
-    kernel_size = 5
-    layer_norm_affline = False
-    # Mising kernel set and kernel size
-    model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
-                  kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
-                  args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
-                  args.skip_channels, args.end_channels,
-                  args.seq_in_len, args.in_dim, args.seq_out_len,
-                  args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
+    if args.model_type == "MTGNN":
+        kernel_set_pass = [1,1]
+        kernel_size = 5
+        layer_norm_affline = False
 
-    model = model.to(device)
+        # Missing kernel set and kernel size
+        model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
+                    kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
+                    args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
+                    args.skip_channels, args.end_channels,
+                    args.seq_in_len, args.in_dim, args.seq_out_len,
+                    args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
 
-    print(args)
-    print("The receptive field size is", model._receptive_field)
-    nParams = sum([p.nelement() for p in model.parameters()])
-    print("Number of model parameters is", nParams, flush=True)
+        model = model.to(device)
 
-    if args.L1Loss:
-        criterion = nn.L1Loss(size_average = False).to(device)
+        print(args)
+        print("The receptive field size is", model._receptive_field)
+        nParams = sum([p.nelement() for p in model.parameters()])
+        print("Number of model parameters is", nParams, flush=True)
+
+        if args.L1Loss:
+            criterion = nn.L1Loss(size_average = False).to(device)
+        else:
+            criterion = nn.MSELoss(size_average = False).to(device)
+
+        evaluateL2 = nn.MSELoss(size_average = False).to(device)
+        evaluateL1 = nn.L1Loss(size_average = False).to(device)
+
+
+        best_val = 10000000
+        optim = Optim(model.parameters(), args.optim, args.lr, args.clip, lr_decay = args.weight_decay)
+
+        # At any point you can hit Ctrl + C to break out of training early.
+        try:
+            print("begin training")
+            for epoch in range(1, args.epochs + 1):
+                epoch_start_time = time.time()
+                train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optim, args.batch_size)
+                val_loss, val_rae, val_corr = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+
+                print(
+                    "| end of epoch {:3d} | time: {:5.2f}s | train_loss {:5.4f} | valid rse {:5.4f} | valid rae {:5.4f} | valid corr  {:5.4f}"\
+                        .format(epoch, (time.time() - epoch_start_time), train_loss, val_loss, val_rae, val_corr), flush = True
+                )
+
+                # Save the model if the validation loss is the best we"ve seen so far.
+                if val_loss < best_val:
+                    with open(args.save, "wb") as f:
+                        torch.save(model, f)
+                    best_val = val_loss
+
+                if epoch % 5 == 0:
+                    test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+                    print("test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr), flush = True)
+
+        except KeyboardInterrupt:
+            print("-" * 89)
+            print("Exiting from training early")
+
+        # Load the best saved model.
+        with open(args.save, "rb") as f:
+            model = torch.load(f)
+
+        vtest_acc, vtest_rae, vtest_corr = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+        test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+        print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
+
+        return vtest_acc, vtest_rae, vtest_corr, test_acc, test_rae, test_corr
+
     else:
-        criterion = nn.MSELoss(size_average = False).to(device)
+        #Need to fix this - This is the baseline solution testing region
+        lr, weight_decay, num_epochs = 0.005, 1e-5, 16
+        model = BaselineModels(args.model_type, args.in_dim, args.seq_out_len, args.node_dim, args.layers, output_activation = None, use_gat = True)
 
-    evaluateL2 = nn.MSELoss(size_average = False).to(device)
-    evaluateL1 = nn.L1Loss(size_average = False).to(device)
+        criterion = nn.MSELoss()
+        optimization = optimizing.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-
-    best_val = 10000000
-    optim = Optim(model.parameters(), args.optim, args.lr, args.clip, lr_decay = args.weight_decay)
-
-    # At any point you can hit Ctrl + C to break out of training early.
-    try:
-        print("begin training")
-        for epoch in range(1, args.epochs + 1):
-            epoch_start_time = time.time()
-            train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optim, args.batch_size)
-            val_loss, val_rae, val_corr = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
-
-            print(
-                "| end of epoch {:3d} | time: {:5.2f}s | train_loss {:5.4f} | valid rse {:5.4f} | valid rae {:5.4f} | valid corr  {:5.4f}"\
-                    .format(epoch, (time.time() - epoch_start_time), train_loss, val_loss, val_rae, val_corr), flush = True
-            )
-
-            # Save the model if the validation loss is the best we"ve seen so far.
-            if val_loss < best_val:
-                with open(args.save, "wb") as f:
-                    torch.save(model, f)
-                best_val = val_loss
-
-            if epoch % 5 == 0:
-                test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
-                print("test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr), flush = True)
-
-    except KeyboardInterrupt:
-        print("-" * 89)
-        print("Exiting from training early")
-
-    # Load the best saved model.
-    with open(args.save, "rb") as f:
-        model = torch.load(f)
-
-    vtest_acc, vtest_rae, vtest_corr = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
-    test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
-    print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
-
-    return vtest_acc, vtest_rae, vtest_corr, test_acc, test_rae, test_corr
-
-
+        train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optimization, args.batch_size)
 
 def run(args):
     global device
@@ -253,6 +282,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type = int, default = 1, help = "")
     parser.add_argument("--num_split", type = int, default = 1,help = "number of splits for graphs")
     parser.add_argument("--step_size", type = int, default = 100, help = "step_size")
+    parser.add_argument("--model-type", type=str, choices=['MTGNN', 'TGCN', 'A3TGCN', 'GCN', 'GAT'], default='MTGNN', help="name of the model to use")
 
     args = parser.parse_args()
     run(args)
