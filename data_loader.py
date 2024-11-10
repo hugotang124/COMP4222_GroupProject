@@ -59,13 +59,10 @@ class StandardScaler():
             **X** (PyTorch Float Tensor): Standardised Tensor
         '''
 
-        tmp_std = self.std.expand(data.size(0), data.size(1))
-        tmp_mean = self.mean.expand(data.size(0), data.size(1))
-
         if id is None:
-            return (data * tmp_std) + tmp_mean
+            return (data * self.std) + self.mean
 
-        return (data * tmp_std[:, id]) + tmp_mean[:, id]
+        return (data * self.std[:, id]) + self.mean[:, id]
 
 class MaxScaler():
     def __init__(self, max: torch.FloatTensor, device: str):
@@ -104,11 +101,10 @@ class MaxScaler():
             **X** (PyTorch Float Tensor): Standardised Tensor
         '''
 
-        tmp_max = self.max.expand(data.size(0), data.size(1))
         if id is None:
-            return data * tmp_max
+            return data * self.max
 
-        return data * tmp_max[:, id]
+        return data * self.max[:, id]
 
 
 class DataLoader(object):
@@ -273,20 +269,20 @@ class DataLoader(object):
         elif (normalize == 1):
             # Standardisation
 
-            X_scaler = StandardScaler(mean = X.mean(dim = 1, keepdim = True),  std = X.std(dim = 1, keepdim = True), device = self.device)
+            X_scaler = StandardScaler(mean = X.mean(dim = 0, keepdim = True),  std = X.std(dim = 0, keepdim = True), device = self.device)
             X = X_scaler.transform(X)
             del X_scaler
 
-            Y_scaler = StandardScaler(mean = Y.mean(dim = 1, keepdim = True),  std = Y.std(dim = 1, keepdim = True), device = self.device)
+            Y_scaler = StandardScaler(mean = Y.mean(dim = 0, keepdim = True),  std = Y.std(dim = 0, keepdim = True), device = self.device)
 
         elif (normalize == 2):
             # Normalization based on the maximum of each column
 
-            X_scaler = MaxScaler(max = X.max(dim = 1).values, device = self.device)
+            X_scaler = MaxScaler(max = X.max(dim = 0).values, device = self.device)
             X = X_scaler.transform(X)
             del X_scaler
 
-            Y_scaler = MaxScaler(max = Y.max(dim = 1).values, device = self.device)
+            Y_scaler = MaxScaler(max = Y.max(dim = 0).values, device = self.device)
 
         return X, Y, Y_scaler
 
