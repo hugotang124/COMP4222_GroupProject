@@ -110,6 +110,8 @@ def main(args):
     print("Finish preprocessing data")
     print("Start loading model")
 
+    num_nodes = Data.m
+
     # Version from pytorch_geometric_temporal
     # from net import MTGNN
     # kernel_set_pass = [1,1]
@@ -124,7 +126,7 @@ def main(args):
 
     # Version from nnzhan/MTGNN
     from old_net import gtnet
-    model = gtnet(gcn_true = args.gcn_true, buildA_true = args.buildA_true, gcn_depth = args.gcn_depth, num_nodes = args.num_nodes,
+    model = gtnet(gcn_true = args.gcn_true, buildA_true = args.buildA_true, gcn_depth = args.gcn_depth, num_nodes = num_nodes,
                   device = device, dropout = args.dropout, subgraph_size = args.subgraph_size,
                   node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
                   conv_channels = args.conv_channels, residual_channels = args.residual_channels,
@@ -248,7 +250,6 @@ if __name__ == "__main__":
     parser.add_argument("--gcn_true", action = "store_true", default = True, help = "whether to add graph convolution layer")
     parser.add_argument("--buildA_true", action = "store_true", default = True, help = "whether to construct adaptive adjacency matrix")
     parser.add_argument("--gcn_depth", type = int, default = 2, help = "graph convolution depth")
-    parser.add_argument("--num_nodes", type = int, default = 137, help = "number of nodes/variables")
     parser.add_argument("--dropout", type = float, default = 0.3, help ="dropout rate")
     parser.add_argument("--subgraph_size", type = int, default = 20, help ="k")
     parser.add_argument("--node_dim", type = int, default = 40, help = "dim of nodes")
