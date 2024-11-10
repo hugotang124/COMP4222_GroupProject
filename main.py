@@ -69,8 +69,8 @@ def train(data, X, Y, model, criterion, optim, batch_size):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         if iter % args.step_size == 0:
-            perm = np.random.permutation(range(args.num_nodes))
-        num_sub = int(args.num_nodes / args.num_split)
+            perm = np.random.permutation(range(num_nodes))
+        num_sub = int(num_nodes / args.num_split)
 
         for j in range(args.num_split):
             if j != args.num_split - 1:
@@ -102,6 +102,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
 
 
 def main(args):
+    global num_nodes
 
     print("Start loading data")
 
