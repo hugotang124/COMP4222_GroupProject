@@ -26,7 +26,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, False):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
-        X = torch.nan_to_num(X, nan=0.0)  
+        assert not torch.isnan(X).any() 
         with torch.no_grad():
             output = model(X)
         output = torch.squeeze(output)

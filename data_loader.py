@@ -11,7 +11,7 @@ from statsmodels.tsa.stattools import adfuller
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from ta import add_all_ta_features
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator, StochasticOscillator
@@ -212,21 +212,7 @@ class DataLoader(object):
         '''
         Build features based on the entirety of data
         '''
-        # Time-based features
-        time_df = pd.DataFrame(
-            {
-                "year": self.raw_data.index.year,
-                "month": self.raw_data.index.month,
-                "day": self.raw_data.index.day,
-                "hour": self.raw_data.index.hour,
-                "day_of_week": self.raw_data.index.dayofweek,
-                "week_of_year": self.raw_data.index.isocalendar().week
-            }
-        )
-        time_df = time_df.astype(int)
-
-        self.raw_data = pd.concat([self.raw_data, time_df], axis = 1)
-
+        pass
 
     def _check_stationarity(self):
         '''
@@ -334,8 +320,6 @@ class DataLoader(object):
             X = inputs[excerpt].to(self.device)
             Y = targets[excerpt].to(self.device)
             X, Y, Y_scaler = self._normalized(X, Y, self.normalize)
-            X = X.to(self.device)
-            Y = Y.to(self.device)
 
             yield X, Y, Y_scaler # No need for Variable
 
