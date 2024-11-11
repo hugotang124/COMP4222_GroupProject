@@ -26,6 +26,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, False):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
+        X = torch.nan_to_num(X, nan=0.0)  
         with torch.no_grad():
             output = model(X)
         output = torch.squeeze(output)
@@ -39,9 +40,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         else:
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
-
         output = Y_scaler.inverse_transform(output)
-
         total_loss += evaluateL2(output, Y).item()
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
@@ -158,7 +157,7 @@ def main(args):
         evaluateL1 = nn.L1Loss(size_average = False).to(device)
 
 
-        best_val = 10000000
+        best_val = math.inf
         optim = Optim(model.parameters(), args.optim, args.lr, args.clip, lr_decay = args.weight_decay)
 
         # At any point you can hit Ctrl + C to break out of training early.
@@ -175,12 +174,12 @@ def main(args):
                 )
 
                 # Save the model if the validation loss is the best we"ve seen so far.
-                if val_loss < best_val:
+                if val_loss <= best_val:
                     with open(args.save, "wb") as f:
                         torch.save(model, f)
                     best_val = val_loss
 
-                if epoch % 5 == 0:
+                if epoch % 5 == 1:
                     test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
                     print("test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr), flush = True)
 
