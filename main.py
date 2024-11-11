@@ -1,6 +1,7 @@
 import argparse
 import math
 import time
+import os
 
 import torch
 import torch.nn as nn
@@ -13,7 +14,6 @@ from optimizer import Optim
 from model import BaselineModels
 import torch.optim as optimizing
 
-
 def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     model.eval()
     total_loss = 0
@@ -21,16 +21,13 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     n_samples = 0
     predict = None
     test = None
-    iter = 0
 
-    for X, Y in data.get_batches(X, Y, batch_size, False):
+    for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, False):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         with torch.no_grad():
             output = model(X)
         output = torch.squeeze(output)
-        Y = Y.unsqueeze(2) 
-        Y = Y.expand(-1, -1, model._receptive_field) 
         if len(output.shape) == 1:
             output = output.unsqueeze(dim = 0)
         if predict is None:
@@ -40,32 +37,23 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
 
-        if output.size(0) > 2:
-            scale = data.scale.expand(output.size(0), data.m)
+        output = Y_scaler.inverse_transform(output)
 
-        scale = torch.squeeze(scale)
-        scale = scale.unsqueeze(2) 
-        scale = scale.expand(-1, -1, model._receptive_field)
-        total_loss += evaluateL2(output * scale, Y * scale).item()
-        total_loss_l1 += evaluateL1(output * scale, Y * scale).item()
+        total_loss += evaluateL2(output, Y).item()
+        total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
-
-        if iter > 201:
-            break
-
-        iter += 1
 
     rse = math.sqrt(total_loss / n_samples) / data.rse
     rae = (total_loss_l1 / n_samples) / data.rae
 
     predict = predict.data.cpu().numpy()
     Ytest = test.data.cpu().numpy()
-    sigma_p = (predict).std(axis = (0,2))
-    sigma_g = (Ytest).std(axis = (0,2))
-    mean_p = predict.mean(axis = (0))
-    mean_g = Ytest.mean(axis = (0))
+    sigma_p = (predict).std(axis = 0)
+    sigma_g = (Ytest).std(axis = 0)
+    mean_p = predict.mean(axis = 0)
+    mean_g = Ytest.mean(axis = 0)
     index = (sigma_g != 0)
-    correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = (0,2)) / (sigma_p * sigma_g)
+    correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = 0) / (sigma_p * sigma_g)
     correlation = (correlation[index]).mean()
     return rse, rae, correlation
 
@@ -75,13 +63,16 @@ def train(data, X, Y, model, criterion, optim, batch_size):
     total_loss = 0
     n_samples = 0
     iter = 0
-    for X, Y in data.get_batches(X, Y, batch_size, True):
+
+    track_time = time.time()
+
+    for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, True):
         model.zero_grad()
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         if iter % args.step_size == 0:
-            perm = np.random.permutation(range(args.num_nodes))
-        num_sub = int(args.num_nodes / args.num_split)
+            perm = np.random.permutation(range(num_nodes))
+        num_sub = int(num_nodes / args.num_split)
 
         for j in range(args.num_split):
             if j != args.num_split - 1:
@@ -91,36 +82,38 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             id = torch.tensor(id).to(device)
             tx = X[:, :, id, :]
             ty = Y[:, id]
-            output = model(tx,id)
-            ty = ty.unsqueeze(2)  # Change shape to [32, num_sub, 1]
-            ty = ty.expand(-1, -1, model._receptive_field) 
+
+            output = model(tx, idx = id)
             output = torch.squeeze(output)
-            #output = output.mean(dim=2) #change this method if needed to max or anything else 
-            scale = data.scale.expand(output.size(0), data.m)
-            scale = scale[:,id]
-            scale = scale.unsqueeze(2)  # Change shape from [32, 2] to [32, 2, 1]
-            scale = scale.expand(-1, -1, model._receptive_field)  
-            loss = criterion(output * scale, ty * scale)
+            if len(output.size()) > 2:
+                output = output.mean(dim = tuple(range(2, len(output.size()))))
+            output = Y_scaler.inverse_transform(output, id)
+
+            loss = criterion(output, ty)
             loss.backward()
             total_loss += loss.item()
             n_samples += (output.size(0) * data.m)
             grad_norm = optim.step()
 
-        if iter % 10 == 0:
-            print("iter:{:3d} | loss: {:.3f}".format(iter,loss.item() / (output.size(0) * data.m)))
-        
-        if iter > 201:
-            break
+        if iter % 100 == 0:
+            curr_time = time.time()
+            print("iter:{:3d} | loss: {:.3f} | run time: {:.3f}".format(iter,loss.item() / (output.size(0) * data.m), curr_time - track_time))
+            curr_time = track_time
 
         iter += 1
+
     return total_loss / n_samples
 
 
 def main(args):
+    global num_nodes
 
     print("Start loading data")
 
     Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize, stationary_check = args.stationarity, noise_removal = args.noise_removal)
+    num_nodes = Data.m
+    os.makedirs(os.path.split(args.save)[0], exist_ok = True)
+
 
     print("Finish preprocessing data")
     print("Start loading model")
@@ -131,7 +124,7 @@ def main(args):
         layer_norm_affline = False
 
         # Missing kernel set and kernel size
-        model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
+        model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, num_nodes,
                     kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
                     args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
                     args.skip_channels, args.end_channels,
@@ -259,7 +252,6 @@ if __name__ == "__main__":
     parser.add_argument("--gcn_true", action = "store_true", default = True, help = "whether to add graph convolution layer")
     parser.add_argument("--buildA_true", action = "store_true", default = True, help = "whether to construct adaptive adjacency matrix")
     parser.add_argument("--gcn_depth", type = int, default = 2, help = "graph convolution depth")
-    parser.add_argument("--num_nodes", type = int, default = 137, help = "number of nodes/variables")
     parser.add_argument("--dropout", type = float, default = 0.3, help ="dropout rate")
     parser.add_argument("--subgraph_size", type = int, default = 20, help ="k")
     parser.add_argument("--node_dim", type = int, default = 40, help = "dim of nodes")
