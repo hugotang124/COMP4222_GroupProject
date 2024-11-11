@@ -6,6 +6,7 @@ import os
 import torch
 import torch.nn as nn
 from net import MTGNN
+from old_net import gtnet
 import numpy as np
 import importlib
 
@@ -28,7 +29,9 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         with torch.no_grad():
             output = model(X)
         output = torch.squeeze(output)
-        if len(output.shape) == 1:
+        if len(output.size()) > 2:
+            output = output.mean(dim = tuple(range(2, len(output.size()))))
+        elif len(output.shape) == 1:
             output = output.unsqueeze(dim = 0)
         if predict is None:
             predict = output
@@ -42,6 +45,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         total_loss += evaluateL2(output, Y).item()
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
+        break
 
     rse = math.sqrt(total_loss / n_samples) / data.rse
     rae = (total_loss_l1 / n_samples) / data.rae
@@ -101,6 +105,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             curr_time = track_time
 
         iter += 1
+        break
 
     return total_loss / n_samples
 
@@ -119,17 +124,25 @@ def main(args):
     print("Start loading model")
 
     if args.model_type == "MTGNN":
-        kernel_set_pass = [1,1]
-        kernel_size = 5
         layer_norm_affline = False
 
-        # Missing kernel set and kernel size
-        model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, num_nodes,
-                    kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
-                    args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
-                    args.skip_channels, args.end_channels,
-                    args.seq_in_len, args.in_dim, args.seq_out_len,
-                    args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
+        if args.new:
+            kernel_set_pass = [1,1]
+            kernel_size = 5
+            model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, num_nodes,
+                        kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
+                        args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
+                        args.skip_channels, args.end_channels,
+                        args.seq_in_len, args.in_dim, args.seq_out_len,
+                        args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
+        else:
+            model = gtnet(gcn_true = args.gcn_true, buildA_true = args.buildA_true, gcn_depth = args.gcn_depth, num_nodes = num_nodes,
+                    device = device, dropout = args.dropout, subgraph_size = args.subgraph_size,
+                    node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
+                    conv_channels = args.conv_channels, residual_channels = args.residual_channels,
+                    skip_channels = args.skip_channels, end_channels = args.end_channels,
+                    seq_length = args.seq_in_len, in_dim = args.in_dim, out_dim = args.seq_out_len,
+                    layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, layer_norm_affline = layer_norm_affline)
 
         model = model.to(device)
 
@@ -275,6 +288,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_split", type = int, default = 1,help = "number of splits for graphs")
     parser.add_argument("--step_size", type = int, default = 100, help = "step_size")
     parser.add_argument("--model-type", type=str, choices=['MTGNN', 'TGCN', 'A3TGCN', 'GCN', 'GAT'], default='MTGNN', help="name of the model to use")
+    parser.add_argument("--new", action = "store_true", default = False, help = "whether to use the newer MTGNN from pytorch_geometric")
 
     args = parser.parse_args()
     run(args)
