@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.nn import init
 import numbers
 import torch.nn.functional as F
-from typing import Optional
+from typing import Optional, List
 
 
 class nconv(nn.Module):
@@ -112,10 +112,11 @@ class mixprop(nn.Module):
         return ho
 
 class dilated_inception(nn.Module):
-    def __init__(self, cin: int, cout: int, dilation_factor: Optional[int] = 2):
+    def __init__(self, kernel_set: List[int], cin: int, cout: int, dilation_factor: Optional[int] = 2):
         r"""
         An implementation of the dilated inception layer.
         Args:
+            kernel_set (list of int): List of kernel sizes.
             cin (int): Number of input channels.
             cout (int): Number of output channels.
             dilated_factor (int, optional): Dilation factor.
@@ -123,7 +124,7 @@ class dilated_inception(nn.Module):
 
         super(dilated_inception, self).__init__()
         self.tconv = nn.ModuleList()
-        self.kernel_set = [2, 3, 6, 7]
+        self.kernel_set = kernel_set
         cout = int(cout / len(self.kernel_set))
         for kern in self.kernel_set:
             self.tconv.append(nn.Conv2d(cin, cout, (1, kern), dilation = (1, dilation_factor)))

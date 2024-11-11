@@ -122,19 +122,19 @@ def main(args):
 
     if args.model_type == "MTGNN":
         layer_norm_affline = False
+        kernel_size = 5
+        kernel_set = [2, 3, 6, 7]
 
         if args.new:
-            kernel_set_pass = [1,1]
-            kernel_size = 5
             model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, num_nodes,
-                        kernel_set_pass, kernel_size, args.dropout, args.subgraph_size,
+                        kernel_set, kernel_size, args.dropout, args.subgraph_size,
                         args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
                         args.skip_channels, args.end_channels,
                         args.seq_in_len, args.in_dim, args.seq_out_len,
                         args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
         else:
             model = gtnet(gcn_true = args.gcn_true, buildA_true = args.buildA_true, gcn_depth = args.gcn_depth, num_nodes = num_nodes,
-                    device = device, dropout = args.dropout, subgraph_size = args.subgraph_size,
+                    kernel_size = kernel_size, kernel_set = kernel_set, device = device, dropout = args.dropout, subgraph_size = args.subgraph_size,
                     node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
                     conv_channels = args.conv_channels, residual_channels = args.residual_channels,
                     skip_channels = args.skip_channels, end_channels = args.end_channels,

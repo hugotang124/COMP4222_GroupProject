@@ -1,8 +1,8 @@
 from old_layer import *
-from typing import Optional
+from typing import Optional, List
 
 class gtnet(nn.Module):
-    def __init__(self, gcn_true: bool, buildA_true: bool, gcn_depth: int, num_nodes: int, device: str, dropout: float, subgraph_size: int, node_dim: int, dilation_exponential: int, 
+    def __init__(self, gcn_true: bool, buildA_true: bool, gcn_depth: int, num_nodes: int, kernel_size: int, kernel_set: List[int], device: str, dropout: float, subgraph_size: int, node_dim: int, dilation_exponential: int,
                  conv_channels: int, residual_channels: int, skip_channels: int, end_channels: int, seq_length: int, in_dim: int, out_dim: int, layers: int, propalpha: float, tanhalpha: float, 
                  layer_norm_affline = True, predefined_A: torch.FloatTensor = None, static_feat: Optional[int] = None):
 
@@ -15,8 +15,8 @@ class gtnet(nn.Module):
             build_adj (bool): Whether to construct adaptive adjacency matrix.
             gcn_depth (int): Graph convolution depth.
             num_nodes (int): Number of nodes in the graph.
-            kernel_set (list of int): List of kernel sizes.
             kernel_size (int): Size of kernel for convolution, to calculate receptive field size.
+            kernel_set (list of int): List of kernel sizes.
             dropout (float): Droupout rate.
             subgraph_size (int): Size of subgraph.
             node_dim (int): Dimension of nodes.
@@ -70,8 +70,8 @@ class gtnet(nn.Module):
             else:
                 rf_size_j = rf_size_i + j * (kernel_size - 1)
 
-            self.filter_convs.append(dilated_inception(residual_channels, conv_channels, dilation_factor = new_dilation))
-            self.gate_convs.append(dilated_inception(residual_channels, conv_channels, dilation_factor = new_dilation))
+            self.filter_convs.append(dilated_inception(kernel_set, residual_channels, conv_channels, dilation_factor = new_dilation))
+            self.gate_convs.append(dilated_inception(kernel_set, residual_channels, conv_channels, dilation_factor = new_dilation))
             self.residual_convs.append(nn.Conv2d(in_channels = conv_channels, out_channels = residual_channels, kernel_size = (1, 1)))
             if self.seq_length > self._receptive_field:
                 self.skip_convs.append(nn.Conv2d(in_channels = conv_channels, out_channels = skip_channels, kernel_size = (1, self.seq_length - rf_size_j + 1)))
