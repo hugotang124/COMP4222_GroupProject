@@ -45,7 +45,6 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         total_loss += evaluateL2(output, Y).item()
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
-        break
 
     rse = math.sqrt(total_loss / n_samples) / data.rse
     rae = (total_loss_l1 / n_samples) / data.rae
@@ -105,7 +104,6 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             curr_time = track_time
 
         iter += 1
-        break
 
     return total_loss / n_samples
 
