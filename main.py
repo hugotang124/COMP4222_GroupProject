@@ -103,12 +103,12 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             curr_time = track_time
 
         iter += 1
-        
+
 
     return total_loss / n_samples
 
 
-def main(args):
+def run(args):
     global num_nodes
 
     print("Start loading data")
@@ -197,7 +197,16 @@ def main(args):
         test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
         print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
 
-        return vtest_acc, vtest_rae, vtest_corr, test_acc, test_rae, test_corr
+        results = pd.DataFrame.from_dict({
+            "valid_acc": vtest_acc,
+            "valid_rae": vtest_rae,
+            "valid_corr": vtest_corr,
+            "test_acc": test_acc,
+            "test_rae": test_rae,
+            "test_corr": test_corr
+            }, orient = "index").T
+
+        return results
 
     else:
         #Need to fix this - This is the baseline solution testing region
@@ -209,7 +218,7 @@ def main(args):
 
         train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optimization, args.batch_size)
 
-def run(args):
+def main(args):
     global device
 
     # Set training device to GPU (Windows) or MPS (Apple Silicon) accordingly
@@ -222,32 +231,8 @@ def run(args):
 
     torch.set_num_threads(3)
 
-    vacc = []
-    vrae = []
-    vcorr = []
-    acc = []
-    rae = []
-    corr = []
-    for i in range(10):
-        val_acc, val_rae, val_corr, test_acc, test_rae, test_corr = main(args)
-        vacc.append(val_acc)
-        vrae.append(val_rae)
-        vcorr.append(val_corr)
-        acc.append(test_acc)
-        rae.append(test_rae)
-        corr.append(test_corr)
-
-    print("\n\n")
-    print("10 runs average")
-    print("\n\n")
-    print("valid\trse\trae\tcorr")
-    print("mean\t{:5.4f}\t{:5.4f}\t{:5.4f}".format(np.mean(vacc), np.mean(vrae), np.mean(vcorr)))
-    print("std\t{:5.4f}\t{:5.4f}\t{:5.4f}".format(np.std(vacc), np.std(vrae), np.std(vcorr)))
-    print("\n\n")
-    print("test\trse\trae\tcorr")
-    print("mean\t{:5.4f}\t{:5.4f}\t{:5.4f}".format(np.mean(acc), np.mean(rae), np.mean(corr)))
-    print("std\t{:5.4f}\t{:5.4f}\t{:5.4f}".format(np.std(acc), np.std(rae), np.std(corr)))
-
+    results = run(args)
+    results.to_csv("results.csv", index = False)
 
 
 if __name__ == "__main__":
@@ -290,6 +275,6 @@ if __name__ == "__main__":
     parser.add_argument("--new", action = "store_true", default = False, help = "whether to use the newer MTGNN from pytorch_geometric")
     parser.add_argument("--one_feature", action = "store_true", default = False, help = "whether to use one feature or multiple features")
     parser.add_argument("--attention_layer", action = "store_true", default = False, help = "use added attention layer")
-    
+
     args = parser.parse_args()
-    run(args)
+    main(args)
