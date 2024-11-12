@@ -2,6 +2,7 @@ import argparse
 import math
 import time
 import os
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -34,22 +35,29 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
             output = output.mean(dim = tuple(range(2, len(output.size()))))
         elif len(output.shape) == 1:
             output = output.unsqueeze(dim = 0)
+        output = output[:, close_columns]
+        Y = Y[:, close_columns]
         if predict is None:
             predict = output
             test = Y
         else:
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
-        output = Y_scaler.inverse_transform(output)
+        output = Y_scaler.inverse_transform(output, close_columns)
         total_loss += evaluateL2(output, Y).item()
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
+        break
 
     rse = math.sqrt(total_loss / n_samples) / data.rse
     rae = (total_loss_l1 / n_samples) / data.rae
+    rse = rse.cpu().numpy()
+    rae = rae.cpu().numpy()
 
     predict = predict.data.cpu().numpy()
     Ytest = test.data.cpu().numpy()
+    print(predict.shape)
+    print(Ytest.shape)
     sigma_p = (predict).std(axis = 0)
     sigma_g = (Ytest).std(axis = 0)
     mean_p = predict.mean(axis = 0)
@@ -57,7 +65,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     index = (sigma_g != 0)
     correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = 0) / (sigma_p * sigma_g)
     correlation = (correlation[index]).mean()
-    return rse, rae, correlation
+    return rse, rae, correlation, predict
 
 
 def train(data, X, Y, model, criterion, optim, batch_size):
@@ -73,23 +81,26 @@ def train(data, X, Y, model, criterion, optim, batch_size):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         if iter % args.step_size == 0:
-            perm = np.random.permutation(range(num_nodes))
-        num_sub = int(num_nodes / args.num_split)
+            perm = np.random.permutation(range(data.num_currencies, num_nodes))
+        num_sub = int((num_nodes - data.num_currencies) / args.num_split)
 
         for j in range(args.num_split):
             if j != args.num_split - 1:
                 id = perm[j * num_sub:(j + 1) * num_sub]
             else:
                 id = perm[j * num_sub:]
+            id = np.concatenate((close_columns, id))
             id = torch.tensor(id).to(device)
             tx = X[:, :, id, :]
-            ty = Y[:, id]
+            ty = Y[:, close_columns]
 
             output = model(tx, idx = id)
             output = torch.squeeze(output)
             if len(output.size()) > 2:
                 output = output.mean(dim = tuple(range(2, len(output.size()))))
-            output = Y_scaler.inverse_transform(output, id)
+
+            output = output[:, close_columns]
+            output = Y_scaler.inverse_transform(output, close_columns)
 
             loss = criterion(output, ty)
             loss.backward()
@@ -103,18 +114,20 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             curr_time = track_time
 
         iter += 1
+        break
 
 
     return total_loss / n_samples
 
 
 def run(args):
-    global num_nodes
+    global num_nodes, close_columns
 
     print("Start loading data")
 
     Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize, stationary_check = args.stationarity, noise_removal = args.noise_removal, one_feature = args.one_feature)
     num_nodes = Data.m
+    close_columns = np.arange(Data.num_currencies)
     os.makedirs(os.path.split(args.save)[0], exist_ok = True)
 
 
@@ -168,7 +181,7 @@ def run(args):
             for epoch in range(1, args.epochs + 1):
                 epoch_start_time = time.time()
                 train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optim, args.batch_size)
-                val_loss, val_rae, val_corr = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+                val_loss, val_rae, val_corr, predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
 
                 print(
                     "| end of epoch {:3d} | time: {:5.2f}s | train_loss {:5.4f} | valid rse {:5.4f} | valid rae {:5.4f} | valid corr  {:5.4f}"\
@@ -182,7 +195,7 @@ def run(args):
                     best_val = val_loss
 
                 if epoch % 5 == 1:
-                    test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+                    test_acc, test_rae, test_corr, predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
                     print("test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr), flush = True)
 
         except KeyboardInterrupt:
@@ -193,8 +206,8 @@ def run(args):
         with open(args.save, "rb") as f:
             model = torch.load(f)
 
-        vtest_acc, vtest_rae, vtest_corr = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
-        test_acc, test_rae, test_corr = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+        vtest_acc, vtest_rae, vtest_corr, predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+        test_acc, test_rae, test_corr, predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
         print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
 
         results = pd.DataFrame.from_dict({

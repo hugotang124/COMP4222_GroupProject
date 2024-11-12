@@ -130,7 +130,14 @@ class DataLoader(object):
         self.raw_data = self.raw_data.loc[self.start_time:]
         self.raw_data.dropna(axis = 1, inplace = True)
         self.currencies = list(set(map(lambda x: x.split("_")[0], self.raw_data.columns)))
+        self.num_currencies = len(self.currencies)
         self._build_data_features()
+
+        close_columns = list(map(lambda x: x + "_close", self.currencies))
+        columns = close_columns + list(set(self.raw_data.columns) - set(close_columns))
+        self.raw_data = self.raw_data[columns]
+
+
 
         # Save memory
         currencies_data.clear()
@@ -151,7 +158,7 @@ class DataLoader(object):
             self.data = self.raw_data.to_numpy()
 
         self.n, self.m = self.data.shape
-        print(f"There are {len(self.currencies)} currencies involved in the data.")
+        print(f"There are {self.num_currencies} currencies involved in the data.")
         print(f"Dataframe Shape: {self.data.shape}")
 
         self.P = window
@@ -160,9 +167,11 @@ class DataLoader(object):
         self._split(train, valid)
         self.device = device
 
+        Ytest_currencies = self.test[1][:, : self.num_currencies]
 
-        self.rse = normal_std(self.test[1])
-        self.rae = torch.mean(torch.abs(self.test[1] - torch.mean(self.test[1])))
+
+        self.rse = normal_std(Ytest_currencies)
+        self.rae = torch.mean(torch.abs(Ytest_currencies - torch.mean(Ytest_currencies)))
 
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
