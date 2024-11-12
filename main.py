@@ -55,8 +55,6 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
 
     predict = predict.data.cpu().numpy()
     Ytest = test.data.cpu().numpy()
-    print(predict.shape)
-    print(Ytest.shape)
     sigma_p = (predict).std(axis = 0)
     sigma_g = (Ytest).std(axis = 0)
     mean_p = predict.mean(axis = 0)
@@ -207,7 +205,6 @@ def run(args):
         vtest_acc, vtest_rae, vtest_corr, predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
         test_acc, test_rae, test_corr, predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
         print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
-
         results = pd.DataFrame.from_dict({
             "valid_acc": vtest_acc,
             "valid_rae": vtest_rae,

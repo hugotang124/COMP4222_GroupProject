@@ -281,6 +281,22 @@ class LayerNormalization(nn.Module):
                 X, tuple(X.shape[1:]), self._weight, self._bias, self._eps
             )
 
+class SimpleAttention(nn.Module):
+    def __init__(self, input_dim: int):
+        super(SimpleAttention, self).__init__()
+        self.fc = nn.Linear(input_dim, input_dim)  # Linear transformation for the input features
+
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        # Calculate attention scores
+        scores = self.fc(x)  
+
+        # Apply softmax to get attention weights
+        attention_weights = torch.softmax(scores, dim = -1) 
+
+        # Weighted sum of the input features
+        attended_output = attention_weights * x  # Element-wise multiplication
+        return attended_output  # Aggregate over the sequence length dimension
+    
 
 class MTGNNLayer(nn.Module):
     r"""An implementation of the MTGNN layer.
@@ -310,7 +326,7 @@ class MTGNNLayer(nn.Module):
 
     def __init__(self,dilation_exponential: int, rf_size_i: int, kernel_size: int, j: int, residual_channels: int, conv_channels: int,\
                 skip_channels: int, kernel_set: list, new_dilation: int, layer_norm_affline: bool, gcn_true: bool, seq_length: int,\
-                receptive_field: int, dropout: float, gcn_depth: int, num_nodes: int, propalpha: float):
+                receptive_field: int, dropout: float, gcn_depth: int, num_nodes: int, propalpha: float, attention_layer: bool):
         super(MTGNNLayer, self).__init__()
         self._dropout = dropout
         self._gcn_true = gcn_true
@@ -373,6 +389,9 @@ class MTGNNLayer(nn.Module):
                 (residual_channels, num_nodes, receptive_field - rf_size_j + 1),
                 elementwise_affine = layer_norm_affline,
             )
+        if attention_layer:
+            self.simple_attention = SimpleAttention(168)
+        self.attention_layer = attention_layer  
         self._reset_parameters()
 
     def _reset_parameters(self):
@@ -408,7 +427,8 @@ class MTGNNLayer(nn.Module):
         X_gate = torch.sigmoid(X_gate)
         X = X_filter * X_gate
         X = F.dropout(X, self._dropout, training = training)
-        
+        if (self.attention_layer):
+            X = self.simple_attention(X)
         X_skip_conv = self._skip_conv(X) #added this to remove error
     
         if X_skip_conv.shape[3] != X_skip.shape[3]: #added this to remove error

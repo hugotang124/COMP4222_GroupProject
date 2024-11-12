@@ -78,6 +78,7 @@ class MTGNN(nn.Module):
                     gcn_depth = gcn_depth,
                     num_nodes = num_nodes,
                     propalpha = propalpha,
+                    attention_layer = attention_layer,
                 )
             )
 
