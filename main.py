@@ -103,6 +103,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
             curr_time = track_time
 
         iter += 1
+        
 
     return total_loss / n_samples
 
@@ -112,7 +113,7 @@ def main(args):
 
     print("Start loading data")
 
-    Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize, stationary_check = args.stationarity, noise_removal = args.noise_removal)
+    Data = DataLoader(args.data_directory, args.time_interval, train = 0.6, valid = 0.2, device = device, horizon = args.horizon, window = args.seq_in_len, normalize = args.normalize, stationary_check = args.stationarity, noise_removal = args.noise_removal, one_feature = args.one_feature)
     num_nodes = Data.m
     os.makedirs(os.path.split(args.save)[0], exist_ok = True)
 
@@ -123,7 +124,7 @@ def main(args):
     if args.model_type == "MTGNN":
         layer_norm_affline = False
         kernel_size = 5
-        kernel_set = [2, 3, 6, 7]
+        kernel_set = [1,1]
 
         if args.new:
             model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, num_nodes,
@@ -131,15 +132,16 @@ def main(args):
                         args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
                         args.skip_channels, args.end_channels,
                         args.seq_in_len, args.in_dim, args.seq_out_len,
-                        args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline)
+                        args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline, args.attention_layer)
         else:
+            kernel_set = [2, 3, 6, 7]
             model = gtnet(gcn_true = args.gcn_true, buildA_true = args.buildA_true, gcn_depth = args.gcn_depth, num_nodes = num_nodes,
                     kernel_size = kernel_size, kernel_set = kernel_set, device = device, dropout = args.dropout, subgraph_size = args.subgraph_size,
                     node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
                     conv_channels = args.conv_channels, residual_channels = args.residual_channels,
                     skip_channels = args.skip_channels, end_channels = args.end_channels,
                     seq_length = args.seq_in_len, in_dim = args.in_dim, out_dim = args.seq_out_len,
-                    layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, layer_norm_affline = layer_norm_affline)
+                    layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, attention_layer = args.attention_layer, layer_norm_affline = layer_norm_affline)
 
         model = model.to(device)
 
@@ -286,6 +288,8 @@ if __name__ == "__main__":
     parser.add_argument("--step_size", type = int, default = 100, help = "step_size")
     parser.add_argument("--model-type", type=str, choices=['MTGNN', 'TGCN', 'A3TGCN', 'GCN', 'GAT'], default='MTGNN', help="name of the model to use")
     parser.add_argument("--new", action = "store_true", default = False, help = "whether to use the newer MTGNN from pytorch_geometric")
-
+    parser.add_argument("--one_feature", action = "store_true", default = False, help = "whether to use one feature or multiple features")
+    parser.add_argument("--attention_layer", action = "store_true", default = False, help = "use added attention layer")
+    
     args = parser.parse_args()
     run(args)

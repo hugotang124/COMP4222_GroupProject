@@ -111,7 +111,7 @@ class DataLoader(object):
 
     start_time = datetime(2021, 10, 1)
 
-    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool, noise_removal: bool):
+    def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool, noise_removal: bool, one_feature: bool):
 
         data_files = glob.glob(os.path.join(data_directory, f"*{time_interval}*.csv"))
 
@@ -134,6 +134,9 @@ class DataLoader(object):
 
         # Save memory
         currencies_data.clear()
+
+        if one_feature:
+            self.raw_data = self.raw_data[list(map(lambda x: x + "_close", self.currencies))]
 
         # Stationarity checking
         if stationary_check:

@@ -3,7 +3,7 @@ from typing import Optional, List
 
 class gtnet(nn.Module):
     def __init__(self, gcn_true: bool, buildA_true: bool, gcn_depth: int, num_nodes: int, kernel_size: int, kernel_set: List[int], device: str, dropout: float, subgraph_size: int, node_dim: int, dilation_exponential: int,
-                 conv_channels: int, residual_channels: int, skip_channels: int, end_channels: int, seq_length: int, in_dim: int, out_dim: int, layers: int, propalpha: float, tanhalpha: float, 
+                 conv_channels: int, residual_channels: int, skip_channels: int, end_channels: int, seq_length: int, in_dim: int, out_dim: int, layers: int, propalpha: float, tanhalpha: float, attention_layer: bool,
                  layer_norm_affline = True, predefined_A: torch.FloatTensor = None, static_feat: Optional[int] = None):
 
         r"""An implementation of the Multivariate Time Series Forecasting Graph Neural Networks.

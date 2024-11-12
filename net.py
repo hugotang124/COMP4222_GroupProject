@@ -38,7 +38,7 @@ class MTGNN(nn.Module):
     def __init__(self, gcn_true: bool, build_adj: bool, gcn_depth: int, num_nodes: int, kernel_set: list, kernel_size: int,
                 dropout: float, subgraph_size: int, node_dim: int, dilation_exponential: int, conv_channels: int, residual_channels: int,
                 skip_channels: int, end_channels: int, seq_length: int, in_dim: int, out_dim: int, layers: int, propalpha: float, tanhalpha: float,
-                layer_norm_affline: bool, xd: Optional[int] = None):
+                layer_norm_affline: bool, attention_layer: bool, xd: Optional[int] = None):
 
         super(MTGNN, self).__init__()
         self._gcn_true = gcn_true
