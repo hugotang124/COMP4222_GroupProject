@@ -21,7 +21,7 @@ To run the code for MTGNN (1st Version - implemented by us): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16"``` </br>
 Alternatively (2nd Version - implemented by us): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --new```  </br>
-
+</br>
 The current Model uses the following: </br>
 Learning Rate: 0.00001 </br>
 Time Interval: 1h </br>
