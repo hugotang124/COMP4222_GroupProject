@@ -177,13 +177,16 @@ class DataLoader(object):
             data (pd.DataFrame): Data for the currency
         '''
 
-
         windows = [5, 10, 20]
 
         data['volume_quote_ratio'] = data['volume'] / data['quote_volume']
         data['buy_sell_volume_ratio'] = data['buy_base_vol'] / data['volume']
         data['buy_sell_quote_ratio'] = data['buy_quote_vol'] / data['quote_volume']
 
+        # Log Returns with and without time lags
+        data['log_returns'] = np.log(data['close']) - np.log(data['close'].shift(1))
+        for i in range(1, 6):
+            data[f'log_returns_{i}_lag'] = data['log_returns'].shift(i)
 
         # Stochastic Oscillator
         stoch = StochasticOscillator(high = data['high'], low = data['low'], close = data['close'])
