@@ -17,10 +17,16 @@ To get the dataset: </br>
 ```python fetch_data.py --symbols "PEPEUSDT,TRXUSDT,ADAUSDT,ATOMUSDT,BTCUSDT,VETUSDT,XLMUSDT,POLUSDT,AVAXUSDT,TONUSDT,SUIUSDT,RENDERUSDT,STXUSDT,LINKUSDT,OPUSDT,HBARUSDT,JUPUSDT,FTMUSDT,ALGOUSDT,FETUSDT,MKRUSDT,SHIBUSDT,UNIUSDT,LDOUSDT,THETAUSDT,SOLUSDT,IMXUSDT,TIAUSDT,ICPUSDT,WIFUSDT,APTUSDT,GRTUSDT,FLOKIUSDT,TAOUSDT,DOGEUSDT,WBETHUSDT,BCHUSDT,USDCUSDT,RUNEUSDT,WLDUSDT,BNBUSDT,OMUSDT,SEIUSDT,XRPUSDT,BONKUSDT,ETHUSDT,DAIUSDT,FILUSDT,DOTUSDT,ETCUSDT,INJUSDT,NEARUSDT,ENAUSDT,LTCUSDT,AAVEUSDT,ARBUSDT,PYTHUSDT" --start-date "2019-10-01" --end-date "2024-11-01" --interval "1h"```
 </br>
 </br>
-To run the code for MTGNN (1st Version - implemented by us): </br>
+To run the code for MTGNN - Multiple Features (1st Version - implemented by us): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16"``` </br>
-Alternatively (2nd Version - implemented by us): </br>
+Alternatively - Multiple Features (2nd Version - implemented by us): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --new```  </br>
+To run the code for MTGNN - One Feature (Close Price) (1st Version - implemented by us): </br>
+```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --one_feature```  </br>
+Alternatively - One Feature (2nd Version - implemented by us): </br>
+```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --new --one_feature```  </br>
+To add an attention layer, simply add this at the end of the line: </br>
+```--attention_layer```
 </br>
 
 The Current Model uses the following: </br>
