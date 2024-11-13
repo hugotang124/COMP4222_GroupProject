@@ -12,7 +12,6 @@ import numpy as np
 
 from data_loader import DataLoader
 from optimizer import Optim
-from model import BaselineModels
 import torch.optim as optimizing
 
 def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
