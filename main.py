@@ -217,14 +217,7 @@ def run(args):
         return results
 
     else:
-        #Need to fix this - This is the baseline solution testing region
-        lr, weight_decay, num_epochs = 0.005, 1e-5, 16
-        model = BaselineModels(args.model_type, args.in_dim, args.seq_out_len, args.node_dim, args.layers, output_activation = None, use_gat = True)
-
-        criterion = nn.MSELoss()
-        optimization = optimizing.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-
-        train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optimization, args.batch_size)
+        raise ValueError("Please run crypto-studies-w-gnn.ipynb for baseline models comparison.")
 
 def main(args):
     global device
