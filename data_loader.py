@@ -127,7 +127,6 @@ class DataLoader(object):
         self.raw_data.dropna(axis = 1, inplace = True)
         self.currencies = list(set(map(lambda x: x.split("_")[0], self.raw_data.columns)))
         self.num_currencies = len(self.currencies)
-        self._build_data_features()
 
         close_columns = list(map(lambda x: x + "_close", self.currencies))
         columns = close_columns + list(set(self.raw_data.columns) - set(close_columns))
@@ -215,12 +214,6 @@ class DataLoader(object):
 
         data.drop(columns = ["open", "high", "low"], inplace = True)
 
-
-    def _build_data_features(self):
-        '''
-        Build features based on the entirety of data
-        '''
-        pass
 
     def _check_stationarity(self):
         '''
