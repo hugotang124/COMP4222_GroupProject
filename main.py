@@ -9,7 +9,6 @@ import torch.nn as nn
 from net import MTGNN
 from old_net import gtnet
 import numpy as np
-import importlib
 
 from data_loader import DataLoader
 from optimizer import Optim
