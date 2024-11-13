@@ -22,9 +22,11 @@ To run the code for MTGNN (1st Version - implemented by us): </br>
 Alternatively (2nd Version - implemented by us): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --new```  </br>
 </br>
+
 The Current Model uses the following: </br>
-Learning Rate: 0.00001 </br>
-Time Interval: 1h </br>
-Sequence In Length: 168 (24 hours 7 days) </br>
-Optimizer: Adam </br>
+Learning Rate: 0.001 </br>
+Epochs: 16 </br>
+Time Interval: 1h, 1d </br>
+Sequence In Length: 168 (24 hours 7 days) for 1h, and 7 for 1d </br>
+Optimizer: AdamW </br>
 Horizon: 3 (default) </br>
