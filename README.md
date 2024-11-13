@@ -1,5 +1,6 @@
 <h1> COMP 4222 Project </h1>
 In the rapidly evolving landscape of cryptocurrency markets, effective price forecasting remains a significant challenge due to the inherent volatility and complex interdependencies among various cryptocurrencies. This project aims to adapt a state-of-the-art framework, "Connecting the Dots: Multivariate Time Series Forecasting with Graph Neural Networks," to the specific context of cryptocurrency datasets. Our objective is to leverage Graph Neural Networks (GNNs) to model the underlying spatial and temporal dependencies inherent in these datasets, potentially revealing complex relationships and trends that traditional methods may overlook. Our dataset consists of hourly and daily data. In this project, we used the following steps: </br>
+
 1. Data Collection </br>
 2. Graph Construction </br>
 3. Feature Engineering </br>
