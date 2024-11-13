@@ -10,7 +10,6 @@ import torch.nn.functional as F
 
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 
 
 class Linear(nn.Module):

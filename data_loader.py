@@ -1,18 +1,13 @@
-import pickle
 from typing import List, Optional
 import numpy as np
 import os
 import glob
 import pandas as pd
 from datetime import datetime
-import scipy.sparse as sp
-from scipy.sparse import linalg
 from statsmodels.tsa.stattools import adfuller
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 from sklearn.preprocessing import MinMaxScaler
-from ta import add_all_ta_features
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator, StochasticOscillator
 from ta.trend import EMAIndicator, MACD
@@ -160,7 +155,6 @@ class DataLoader(object):
         self.n, self.m = self.data.shape
         print(f"There are {self.num_currencies} currencies involved in the data.")
         print(f"Dataframe Shape: {self.data.shape}")
-
         self.P = window
         self.h = horizon
         self.normalize = normalize
