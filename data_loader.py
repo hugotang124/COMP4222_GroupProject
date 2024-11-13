@@ -120,6 +120,7 @@ class DataLoader(object):
         for currency, data in currencies_data.items():
             self._build_currency_features(currency, data)
             data.columns = [f"{currency.lower()}_{x}" for x in data.columns]
+            data = data.loc[(data != 0).all(axis = 1)]
 
         self.raw_data = pd.concat(currencies_data.values(), axis = 1)
         self.raw_data = self.raw_data.loc[self.start_time:]
