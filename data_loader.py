@@ -133,6 +133,8 @@ class DataLoader(object):
         columns = close_columns + list(set(self.raw_data.columns) - set(close_columns))
         self.raw_data = self.raw_data[columns]
 
+        print(self.raw_data.head())
+
 
 
         # Save memory
@@ -144,7 +146,6 @@ class DataLoader(object):
         # Stationarity checking
         if stationary_check:
             self._check_stationarity()
-            self._check_cointegration()
 
         self.data = np.zeros(self.raw_data.shape)
         if noise_removal:
@@ -226,17 +227,15 @@ class DataLoader(object):
         Check stationarity of each column by the ADF test (Alternate hypothesis being the time series is stationary)
         '''
 
-        self.stationary_vars = []
+        self.non_stationary_vars = []
         p_value_threshold = 0.05
 
         for col in self.raw_data.columns:
             adftest = adfuller(self.raw_data[col], autolag = "AIC", regression = "CT")
-            if adftest[1] < p_value_threshold:
-                self.stationary_vars.append(col)
+            if adftest[1] > p_value_threshold:
+                self.non_stationary_vars.append(col)
 
-
-    def _check_cointegration(self):
-        pass
+        self.raw_data.drop(columns = self.non_stationary_vars, inplace = True)
 
     def _noise_removal(self, signal: np.ndarray, window: int = 100):
         '''
