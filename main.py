@@ -52,7 +52,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     rae = rae.cpu().numpy()
 
     predict = predict.data.cpu().numpy()
-    Ytest = test.data.cpu().numpy()
+    Ytest = test.data.cpu().numpy() 
     sigma_p = (predict).std(axis = 0)
     sigma_g = (Ytest).std(axis = 0)
     mean_p = predict.mean(axis = 0)
@@ -76,7 +76,10 @@ def train(data, X, Y, model, criterion, optim, batch_size):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         if iter % args.step_size == 0:
-            perm = np.random.permutation(range(data.num_currencies, num_nodes))
+            if args.one_feature:
+                perm = np.random.permutation(range(num_nodes))
+            else:
+                perm = np.random.permutation(range(data.num_currencies, num_nodes))
         num_sub = int((num_nodes - data.num_currencies) / args.num_split)
 
         for j in range(args.num_split):
@@ -151,7 +154,7 @@ def run(args):
                     layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, attention_layer = args.attention_layer, layer_norm_affline = layer_norm_affline)
 
         model = model.to(device)
-
+        
         print(args)
         print("The receptive field size is", model._receptive_field)
         nParams = sum([p.nelement() for p in model.parameters()])
