@@ -31,7 +31,8 @@ class Optim(object):
             'sgd': optim.SGD,
             'adagrad': optim.Adagrad,
             'adadelta': optim.Adadelta,
-            'adam': optim.Adam
+            'adam': optim.Adam,
+            'adamw': optim.AdamW
         }
 
         if self.method not in optimizer_methods:
