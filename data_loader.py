@@ -108,14 +108,17 @@ class DataLoader(object):
 
     def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool, noise_removal: bool, one_feature: bool):
 
-        data_files = glob.glob(os.path.join(data_directory, f"*{time_interval}*.csv"))
+        data_files = glob.glob(os.path.join(data_directory, f"*1h*.csv"))
 
         if not data_files:
-            print(f"There are no data files in provided directory {data_directory} and time interval = {time_interval}")
+            print(f"There are no data files in provided directory {data_directory}")
             exit()
 
-        self.currencies = list(map(lambda x: os.path.split(x)[-1].replace(f"{time_interval}.csv", ""), data_files))
+        self.currencies = list(map(lambda x: os.path.split(x)[-1].replace(f"1h.csv", ""), data_files))
         currencies_data = dict(map(lambda x: (x[0], pd.read_csv(x[1], index_col = 0, parse_dates = True)), zip(self.currencies, data_files)))
+
+        if time_interval != "1h":
+            currencies_data = dict(map(lambda x: (x[0], self._resample_data(x[1], time_interval)), currencies_data.items()))
 
         for currency, data in currencies_data.items():
             self._build_currency_features(currency, data)
@@ -131,6 +134,8 @@ class DataLoader(object):
         close_columns = list(map(lambda x: x + "_close", self.currencies))
         columns = close_columns + list(set(self.raw_data.columns) - set(close_columns))
         self.raw_data = self.raw_data[columns]
+
+        print(list(self.raw_data.columns))
 
         # Save memory
         currencies_data.clear()
@@ -164,6 +169,19 @@ class DataLoader(object):
         self.rse = normal_std(Ytest_currencies)
         self.rae = torch.mean(torch.abs(Ytest_currencies - torch.mean(Ytest_currencies)))
 
+    def _resample_data(self, data, timeframe):
+        agg_dict = {
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'volume': 'sum',
+            'quote_volume': 'sum',
+            'trades': 'sum',
+            'buy_base_vol': 'sum',
+            'buy_quote_vol': 'sum'
+        }
+        return data.resample(timeframe).apply(agg_dict)
 
     def _build_currency_features(self, currency: str, data: pd.DataFrame):
         '''
