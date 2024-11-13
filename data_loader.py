@@ -327,8 +327,8 @@ class DataLoader(object):
             # Ensure inputs and targets are tensors
             X = inputs[excerpt].to(self.device)
             Y = targets[excerpt].to(self.device)
-            X, Y, Y_scaler = self._normalized(X, Y, self.normalize)
+            X, Y, X_scaler = self._normalized(X, Y, self.normalize)
 
-            yield X, Y, Y_scaler # No need for Variable
+            yield X, Y, X_scaler # No need for Variable
 
             start_idx += batch_size

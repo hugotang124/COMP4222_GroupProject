@@ -35,13 +35,14 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
             output = output.unsqueeze(dim = 0)
         output = output[:, close_columns]
         Y = Y[:, close_columns]
+        output = X_scaler.inverse_transform(output, close_columns)
         if predict is None:
             predict = output
             test = Y
         else:
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
-        output = X_scaler.inverse_transform(output, close_columns)
+
         total_loss += evaluateL2(output, Y).item()
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
@@ -52,6 +53,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     rae = rae.cpu().numpy()
 
     predict = predict.data.cpu().numpy()
+    predict_df = pd.DataFrame(predict, columns = data.currencies)
     Ytest = test.data.cpu().numpy() 
     sigma_p = (predict).std(axis = 0)
     sigma_g = (Ytest).std(axis = 0)
@@ -60,7 +62,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     index = (sigma_g != 0)
     correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = 0) / (sigma_p * sigma_g)
     correlation = (correlation[index]).mean()
-    return rse, rae, correlation, predict
+    return rse, rae, correlation, predict_df
 
 
 def train(data, X, Y, model, criterion, optim, batch_size):
@@ -203,8 +205,10 @@ def run(args):
         with open(args.save, "rb") as f:
             model = torch.load(f)
 
-        vtest_acc, vtest_rae, vtest_corr, predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
-        test_acc, test_rae, test_corr, predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+        vtest_acc, vtest_rae, vtest_corr, valid_predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+        test_acc, test_rae, test_corr, test_predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+        valid_predict.to_csv("valid_predict.csv", index = False)
+        test_predict.to_csv("test_predict.csv", index = False)
         print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
         results = pd.DataFrame.from_dict({
             "valid_acc": vtest_acc,
@@ -270,7 +274,7 @@ if __name__ == "__main__":
     parser.add_argument("--clip", type = int, default = 5, help = "clip")
     parser.add_argument("--propalpha", type = float, default = 0.05, help = "prop alpha")
     parser.add_argument("--tanhalpha", type = float, default = 3, help = "tanh alpha")
-    parser.add_argument("--epochs", type = int, default = 1, help = "")
+    parser.add_argument("--epochs", type = int, default = 16, help = "")
     parser.add_argument("--num_split", type = int, default = 1,help = "number of splits for graphs")
     parser.add_argument("--step_size", type = int, default = 100, help = "step_size")
     parser.add_argument("--model-type", type=str, choices=['MTGNN', 'TGCN', 'A3TGCN', 'GCN', 'GAT'], default='MTGNN', help="name of the model to use")
