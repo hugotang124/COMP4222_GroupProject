@@ -22,7 +22,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     predict = None
     test = None
 
-    for X, Y, X_scaler in data.get_batches(X, Y, batch_size, False):
+    for X, Y, X_scaler in data.get_batches(X, Y, batch_size):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         assert not torch.isnan(X).any() 
@@ -73,7 +73,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
 
     track_time = time.time()
 
-    for X, Y, X_scaler in data.get_batches(X, Y, batch_size, True):
+    for X, Y, X_scaler in data.get_batches(X, Y, batch_size):
         model.zero_grad()
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
@@ -111,7 +111,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
         if iter % 100 == 0:
             curr_time = time.time()
             print("iter:{:3d} | loss: {:.3f} | run time: {:.3f}".format(iter,loss.item() / (output.size(0) * data.m), curr_time - track_time))
-            curr_time = track_time
+            track_time = curr_time
 
         iter += 1
 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_interval", type = int, default = 2000, metavar = "N", help = "report interval")
     parser.add_argument("--save", type = str, default = "./model/model.pt", help = "path to save the final model")
     parser.add_argument("--optim", type = str, default = "adamw")
-    parser.add_argument("--L1Loss", action = "store_true", default = True)
+    parser.add_argument("--L1Loss", action = "store_true", default = False)
     parser.add_argument("--normalize", type = int, default = 1)
     parser.add_argument("--stationarity", action = "store_true", default = False)
     parser.add_argument("--noise_removal", action = "store_true", default = False)

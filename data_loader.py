@@ -257,28 +257,26 @@ class DataLoader(object):
 
         return np.convolve(signal, np.ones(window) / window, mode = 'same')
 
-    def _normalized(self, X, Y, normalize: int = 1):
+    def _normalized(self, data, normalize: int = 1):
         '''
         Normalize data with one of the multiple methods
         Args:
             normalize (int): Normalization mode
         '''
         if (normalize == 0):
-            data = data
-            X_scaler = StandardScaler(mean = torch.zeros([X.size()[0], X.size()[-1]]), std = torch.ones([X.size()[0], X.size()[-1]]), device = self.device)
+            data_scaler = StandardScaler(mean = torch.zeros([data.size()[0], data.size()[-1]]), std = torch.ones([data.size()[0], data.size()[-1]]), device = self.device)
 
         elif (normalize == 1):
             # Standardisation
-            X_scaler = StandardScaler(mean = X.mean(dim = 1),  std = X.std(dim = 1), device = self.device)
-            X = X_scaler.transform(X)
+            data_scaler = StandardScaler(mean = data.mean(dim = 1),  std = data.std(dim = 1), device = self.device)
+            data = data_scaler.transform(data)
 
         elif (normalize == 2):
             # Normalization based on the maximum of each column
+            data_scaler = MaxScaler(max = data.max(dim = 1).values, device = self.device)
+            data = data_scaler.transform(data)
 
-            X_scaler = MaxScaler(max = X.max(dim = 1).values, device = self.device)
-            X = X_scaler.transform(X)
-
-        return X, Y, X_scaler
+        return data, data_scaler
 
     def _split(self, train: float, valid: float):
         '''
@@ -312,12 +310,9 @@ class DataLoader(object):
 
         return [X, Y]
 
-    def get_batches(self, inputs, targets, batch_size, shuffle = True):
+    def get_batches(self, inputs, targets, batch_size):
         length = len(inputs)
-        if shuffle:
-            index = torch.randperm(length)
-        else:
-            index = torch.arange(length)  # More efficient than LongTensor
+        index = torch.arange(length)
 
         start_idx = 0
         while start_idx < length:
@@ -327,8 +322,8 @@ class DataLoader(object):
             # Ensure inputs and targets are tensors
             X = inputs[excerpt].to(self.device)
             Y = targets[excerpt].to(self.device)
-            X, Y, X_scaler = self._normalized(X, Y, self.normalize)
+            X, X_scaler = self._normalized(X, self.normalize)
 
-            yield X, Y, X_scaler # No need for Variable
+            yield X, Y, X_scaler# No need for Variable
 
             start_idx += batch_size
