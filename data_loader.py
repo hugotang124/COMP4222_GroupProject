@@ -40,7 +40,8 @@ class StandardScaler():
         Return types:
             **X** (PyTorch Float Tensor): Standardised Tensor.
         '''
-        return (data - self.mean) / self.std
+
+        return (data - self.mean.unsqueeze(1)) / self.std.unsqueeze(1)
 
     def inverse_transform(self, data: torch.FloatTensor, id: torch.Tensor = None) -> torch.FloatTensor:
         '''
@@ -69,7 +70,7 @@ class MaxScaler():
             device (str): Device used for model training
         """
 
-        self.max = max.unsqueeze(1).to(device)
+        self.max = max.to(device)
 
     def transform(self, data: torch.FloatTensor) -> torch.FloatTensor:
         '''
@@ -82,7 +83,7 @@ class MaxScaler():
             **X** (PyTorch Float Tensor): Standardised Tensor.
         '''
 
-        return data / self.max
+        return data / self.max.unsqueeze(1)
 
     def inverse_transform(self, data: torch.FloatTensor, id: Optional[torch.Tensor] = None) -> torch.FloatTensor:
         '''
@@ -264,28 +265,20 @@ class DataLoader(object):
         '''
         if (normalize == 0):
             data = data
-            X_scaler = StandardScaler(mean = 0, std = 1, device = self.device)
-            Y_scaler = StandardScaler(mean = 0, std = 1, device = self.device)
+            X_scaler = StandardScaler(mean = torch.zeros([X.size()[0], X.size()[-1]]), std = torch.ones([X.size()[0], X.size()[-1]]), device = self.device)
 
         elif (normalize == 1):
             # Standardisation
-
-            X_scaler = StandardScaler(mean = X.mean(dim = 0, keepdim = True),  std = X.std(dim = 0, keepdim = True), device = self.device)
+            X_scaler = StandardScaler(mean = X.mean(dim = 1),  std = X.std(dim = 1), device = self.device)
             X = X_scaler.transform(X)
-            del X_scaler
-
-            Y_scaler = StandardScaler(mean = Y.mean(dim = 0, keepdim = True),  std = Y.std(dim = 0, keepdim = True), device = self.device)
 
         elif (normalize == 2):
             # Normalization based on the maximum of each column
 
-            X_scaler = MaxScaler(max = X.max(dim = 0).values, device = self.device)
+            X_scaler = MaxScaler(max = X.max(dim = 1).values, device = self.device)
             X = X_scaler.transform(X)
-            del X_scaler
 
-            Y_scaler = MaxScaler(max = Y.max(dim = 0).values, device = self.device)
-
-        return X, Y, Y_scaler
+        return X, Y, X_scaler
 
     def _split(self, train: float, valid: float):
         '''

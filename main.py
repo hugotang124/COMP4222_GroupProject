@@ -22,7 +22,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     predict = None
     test = None
 
-    for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, False):
+    for X, Y, X_scaler in data.get_batches(X, Y, batch_size, False):
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
         assert not torch.isnan(X).any() 
@@ -41,7 +41,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         else:
             predict = torch.cat((predict, output))
             test = torch.cat((test, Y))
-        output = Y_scaler.inverse_transform(output, close_columns)
+        output = X_scaler.inverse_transform(output, close_columns)
         total_loss += evaluateL2(output, Y).item()
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
@@ -71,7 +71,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
 
     track_time = time.time()
 
-    for X, Y, Y_scaler in data.get_batches(X, Y, batch_size, True):
+    for X, Y, X_scaler in data.get_batches(X, Y, batch_size, True):
         model.zero_grad()
         X = torch.unsqueeze(X, dim = 1)
         X = X.transpose(2, 3)
@@ -98,7 +98,7 @@ def train(data, X, Y, model, criterion, optim, batch_size):
                 output = output.mean(dim = tuple(range(2, len(output.size()))))
 
             output = output[:, close_columns]
-            output = Y_scaler.inverse_transform(output, close_columns)
+            output = X_scaler.inverse_transform(output, close_columns)
 
             loss = criterion(output, ty)
             loss.backward()
