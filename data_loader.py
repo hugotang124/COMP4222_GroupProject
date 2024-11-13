@@ -132,10 +132,6 @@ class DataLoader(object):
         columns = close_columns + list(set(self.raw_data.columns) - set(close_columns))
         self.raw_data = self.raw_data[columns]
 
-        print(self.raw_data.head())
-
-
-
         # Save memory
         currencies_data.clear()
 
