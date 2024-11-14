@@ -6,7 +6,7 @@ def calculate_mape(actual, predicted):
     """Calculate Mean Absolute Percentage Error (MAPE)."""
     return (abs(actual - predicted) / actual).mean() * 100
 
-# Load Bitcoin data
+# Load Crypto data
 predicted_data = pd.read_csv('test_predict.csv')
 predicted_data['time'] = pd.to_datetime(predicted_data['time'])  # Ensure date is in datetime format
 
@@ -23,7 +23,6 @@ for file in currency_files:
     currency_data['time'] = pd.to_datetime(currency_data['time'])  # Ensure date is in datetime format
     currency_name = currency_name.lower()
     if currency_name not in predicted_data.columns:
-        print(f"Column '{currency_name}' not found in predicted_data.")
         continue  
 
     # Merge currency data with Bitcoin data on the date column
@@ -35,9 +34,8 @@ for file in currency_files:
         # Calculate MAPE using the actual close price and the predicted price from the predicted_data
         mape = calculate_mape(merged_data['close'], merged_data[currency_name])
         mape_results[currency_name] = mape  # Store MAPE result with currency name
-    else:
-        print(f"Close price column not found in {filename}")
+    
 
 # Print MAPE results
 for currency_file, mape in mape_results.items():
-    print(f"MAPE for {currency_file}: {mape:.2f}%")
+    print(f"MAPE for {currency_file.upper()}: {mape:.2f}%")
