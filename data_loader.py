@@ -302,13 +302,14 @@ class DataLoader(object):
         n = len(idx_set)
         X = torch.zeros((n, self.P, self.m))
         Y = torch.zeros((n, self.m))
+        end_idx = [idx_set[0] - horizon + 1, idx_set[-1] - horizon + 2]
         for i in range(n):
-            end = idx_set[i] - self.h + 1
+            end = idx_set[i] - horizon + 1
             start = end - self.P
             X[i, :, :] = torch.from_numpy(self.data[start:end, :])
-            Y[i, :] = torch.from_numpy(self.raw_data.iloc[idx_set[i], :].to_numpy())
+            Y[i, :] = torch.from_numpy(self.raw_data.iloc[end, :].to_numpy())
 
-        return [X, Y]
+        return [X, Y, end_idx]
 
     def get_batches(self, inputs, targets, batch_size):
         length = len(inputs)

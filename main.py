@@ -47,6 +47,8 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
         total_loss_l1 += evaluateL1(output, Y).item()
         n_samples += (output.size(0) * data.m)
 
+
+    loss = total_loss / n_samples
     rse = math.sqrt(total_loss / n_samples) / data.rse
     rae = (total_loss_l1 / n_samples) / data.rae
     rse = rse.cpu().numpy()
@@ -62,7 +64,7 @@ def evaluate(data, X, Y, model, evaluateL2, evaluateL1, batch_size):
     index = (sigma_g != 0)
     correlation = ((predict - mean_p) * (Ytest - mean_g)).mean(axis = 0) / (sigma_p * sigma_g)
     correlation = (correlation[index]).mean()
-    return rse, rae, correlation, predict_df
+    return loss, rse, rae, correlation, predict_df
 
 
 def train(data, X, Y, model, criterion, optim, batch_size):
@@ -177,14 +179,18 @@ def run(args):
         # At any point you can hit Ctrl + C to break out of training early.
         try:
             print("begin training")
+
+            epoch_track_df = pd.DataFrame()
+
             for epoch in range(1, args.epochs + 1):
                 epoch_start_time = time.time()
                 train_loss = train(Data, Data.train[0], Data.train[1], model, criterion, optim, args.batch_size)
-                val_loss, val_rae, val_corr, predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+                val_loss, val_rse, val_rae, val_corr, predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+
 
                 print(
-                    "| end of epoch {:3d} | time: {:5.2f}s | train_loss {:5.4f} | valid rse {:5.4f} | valid rae {:5.4f} | valid corr  {:5.4f}"\
-                        .format(epoch, (time.time() - epoch_start_time), train_loss, val_loss, val_rae, val_corr), flush = True
+                    "| end of epoch {:3d} | time: {:5.2f}s | train_loss {:5.4f} | valid loss {:5.4f} | valid rse {:5.4f} | valid rae {:5.4f} | valid corr  {:5.4f}"\
+                        .format(epoch, (time.time() - epoch_start_time), train_loss, val_loss, val_rse, val_rae, val_corr), flush = True
                 )
 
                 # Save the model if the validation loss is the best we"ve seen so far.
@@ -193,27 +199,40 @@ def run(args):
                         torch.save(model, f)
                     best_val = val_loss
 
-                if epoch % 5 == 1:
-                    test_acc, test_rae, test_corr, predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
-                    print("test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr), flush = True)
+                test_acc, test_rae, test_corr = 0, 0, 0
+
+                if args.track or epoch % 5 == 1:
+                    test_loss, test_rse, test_rae, test_corr, predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+                    print("test loss {:5.4f} | test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_loss, test_acc, test_rae, test_corr), flush = True)
+
+                result = pd.DataFrame([[epoch, train_loss, val_loss, val_rse, val_rae, val_corr, test_loss, test_rse, test_rae, test_corr]])
+                epoch_track_df = pd.concat([epoch_track_df, result])
+
 
         except KeyboardInterrupt:
             print("-" * 89)
             print("Exiting from training early")
 
+        epoch_track_df.columns = ['epoch', 'train_loss', 'val_loss', 'val_rse', 'val_rae', 'val_corr', 'test_loss', 'test_rse', 'test_rae', 'test_corr']
+        epoch_track_df.to_csv("epoch_stats_tracking.csv", index = False)
+
         # Load the best saved model.
         with open(args.save, "rb") as f:
             model = torch.load(f)
 
-        vtest_acc, vtest_rae, vtest_corr, valid_predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
-        test_acc, test_rae, test_corr, test_predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
-        valid_predict.to_csv("valid_predict.csv", index = False)
-        test_predict.to_csv("test_predict.csv", index = False)
-        print("final test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_acc, test_rae, test_corr))
+        valid_loss, vtest_acc, vtest_rae, vtest_corr, valid_predict = evaluate(Data, Data.valid[0], Data.valid[1], model, evaluateL2, evaluateL1, args.batch_size)
+        test_loss, test_acc, test_rae, test_corr, test_predict = evaluate(Data, Data.test[0], Data.test[1], model, evaluateL2, evaluateL1, args.batch_size)
+        valid_predict.index = Data.raw_data.index[Data.valid[-1][0]: Data.valid[-1][1]]
+        valid_predict.to_csv("valid_predict.csv", index = True)
+        test_predict.index = Data.raw_data.index[Data.test[-1][0]: Data.test[-1][1]]
+        test_predict.to_csv("test_predict.csv", index = True)
+        print("final test loss {:5.4f} | test rse {:5.4f} | test rae {:5.4f} | test corr {:5.4f}".format(test_loss, test_rse, test_rae, test_corr))
         results = pd.DataFrame.from_dict({
+            "valid_loss": valid_loss,
             "valid_acc": vtest_acc,
             "valid_rae": vtest_rae,
             "valid_corr": vtest_corr,
+            "test_loss": test_loss,
             "test_acc": test_acc,
             "test_rae": test_rae,
             "test_corr": test_corr
@@ -281,6 +300,7 @@ if __name__ == "__main__":
     parser.add_argument("--new", action = "store_true", default = False, help = "whether to use the newer MTGNN from pytorch_geometric")
     parser.add_argument("--one_feature", action = "store_true", default = False, help = "whether to use one feature or multiple features")
     parser.add_argument("--attention_layer", action = "store_true", default = False, help = "use added attention layer")
+    parser.add_argument("--track", action = "store_true", default = False, help = "Enable stats tracking on train, val, test per epoch")
 
     args = parser.parse_args()
     main(args)
