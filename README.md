@@ -1,4 +1,4 @@
-<h1> COMP 4222 Project </h1>
+<h1> Cryptocurrency Price Forecasting </h1>
 In the rapidly evolving landscape of cryptocurrency markets, effective price forecasting remains a significant challenge due to the inherent volatility and complex interdependencies among various cryptocurrencies. This project aims to adapt a state-of-the-art framework, "Connecting the Dots: Multivariate Time Series Forecasting with Graph Neural Networks," to the specific context of cryptocurrency datasets. Our objective is to leverage Graph Neural Networks (GNNs) to model the underlying spatial and temporal dependencies inherent in these datasets, potentially revealing complex relationships and trends that traditional methods may overlook. Our dataset consists of hourly and daily data. In this project, we used the following steps: </br>
 
 1. Data Collection </br>
@@ -17,6 +17,19 @@ SHEKHAR, Shriyan </br>
 KO, Sung Kit </br>
 TANG, Siu Hang </br>
 </br>
+
+Files: </br>
+```data_loader.py``` – involves standardizing the data, creating batches and adding features to the cryptocurrency raw data set. </br>
+```fetch_data.py``` – This script is designed to retrieve data for each cryptocurrency through the BINANCE API. </br>
+```old_layer.py``` - This module defines custom neural network layers used in the model architecture. This is the first version of the layers of MTGNN implemented by us. </br>
+```layer.py``` - This module defines custom neural network layers used in the model architecture. This is the second version of the layers of MTGNN implemented by us. </br>
+```old_net.py``` - This module implements the GTNet (Graph Temporal Network) architecture for multivariate time series forecasting using graph neural networks. This will be paired with old_layer.py. </br>
+```net.py``` - This module implements the MTGNN (Multivariate Time Series Forecasting Graph Neural Network) architecture for predicting multivariate time series data using graph neural networks. This will be paired with layer.py. </br>
+```main.py``` - This script serves as the entry point for the application. It orchestrates the training and evaluation process of the model. It also contains a parser to assign command-line arguments for configuring model parameters. </br>
+```optimizer.py``` – This module defines a customizable optimizer class that supports various optimization methods, gradient clipping, and dynamic learning rate adjustment based on validation performance metrics. </br>
+```requirements.txt``` – This file contains the requirements needed to run the program. </br>
+```crypto-studies-w-gnn.ipynb``` – Contains all the implemented baseline models and its results. </br>
+
 
 To get the dataset: </br>
 ```python fetch_data.py --symbols "PEPEUSDT,TRXUSDT,ADAUSDT,ATOMUSDT,BTCUSDT,VETUSDT,XLMUSDT,POLUSDT,AVAXUSDT,TONUSDT,SUIUSDT,RENDERUSDT,STXUSDT,LINKUSDT,OPUSDT,HBARUSDT,JUPUSDT,FTMUSDT,ALGOUSDT,FETUSDT,MKRUSDT,SHIBUSDT,UNIUSDT,LDOUSDT,THETAUSDT,SOLUSDT,IMXUSDT,TIAUSDT,ICPUSDT,WIFUSDT,APTUSDT,GRTUSDT,FLOKIUSDT,TAOUSDT,DOGEUSDT,WBETHUSDT,BCHUSDT,RUNEUSDT,WLDUSDT,BNBUSDT,OMUSDT,SEIUSDT,XRPUSDT,BONKUSDT,ETHUSDT,DAIUSDT,FILUSDT,DOTUSDT,ETCUSDT,INJUSDT,NEARUSDT,ENAUSDT,LTCUSDT,AAVEUSDT,ARBUSDT,PYTHUSDT" --start-date "2019-10-01" --end-date "2024-11-01" --interval "1h"```
