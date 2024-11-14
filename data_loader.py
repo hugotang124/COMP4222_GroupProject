@@ -106,6 +106,7 @@ class MaxScaler():
 class DataLoader(object):
 
     start_time = datetime(2021, 10, 1)
+    end_time = datetime(2024, 10, 1)
 
     def __init__(self, data_directory: str, time_interval: str, train: float, valid: float, device: str, horizon: int, window: int, normalize: int, stationary_check: bool, noise_removal: bool, one_feature: bool):
 
@@ -149,10 +150,11 @@ class DataLoader(object):
 
         self.data = np.zeros(self.raw_data.shape)
         if noise_removal:
+            end_date_index = self.raw_data.loc[:self.end_time].shape[0]
             for i in range(self.raw_data.shape[1]):
-                self.data[i, :] = self._noise_removal(self.raw_data.iloc[i, :].to_numpy())
+                self.data[:, i] = self._noise_removal(self.raw_data.iloc[:end_date_index, i].to_numpy())
         else:
-            self.data = self.raw_data.to_numpy()
+            self.data = self.raw_data.loc[:self.end_time].to_numpy()
 
         self.n, self.m = self.data.shape
         print(f"There are {self.num_currencies} currencies involved in the data.")
@@ -297,17 +299,17 @@ class DataLoader(object):
         Create batches from provided dataset ranges (train, valid, test) with batch size = horizon
         Args:
             idx_set (range): Range of indexes for data slicing
-            horizon (int): Batch size
+            horizon (int): Horizon
         '''
         n = len(idx_set)
         X = torch.zeros((n, self.P, self.m))
         Y = torch.zeros((n, self.m))
-        end_idx = [idx_set[0] - horizon + 1, idx_set[-1] - horizon + 2]
+        end_idx = [idx_set[0], idx_set[-1] + 1]
         for i in range(n):
             end = idx_set[i] - horizon + 1
             start = end - self.P
             X[i, :, :] = torch.from_numpy(self.data[start:end, :])
-            Y[i, :] = torch.from_numpy(self.raw_data.iloc[end, :].to_numpy())
+            Y[i, :] = torch.from_numpy(self.raw_data.iloc[idx_set[i], :].to_numpy())
 
         return [X, Y, end_idx]
 
