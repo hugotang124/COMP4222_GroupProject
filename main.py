@@ -139,13 +139,14 @@ def run(args):
         layer_norm_affline = False
         kernel_size = 5
         kernel_set = [1,1]
+        seq_out_len = 1
 
         if args.new:
             model = MTGNN(args.gcn_true, args.buildA_true, args.gcn_depth, num_nodes,
                         kernel_set, kernel_size, args.dropout, args.subgraph_size,
                         args.node_dim, args.dilation_exponential,args.conv_channels, args.residual_channels,
                         args.skip_channels, args.end_channels,
-                        args.seq_in_len, args.in_dim, args.seq_out_len,
+                        args.seq_in_len, args.in_dim, seq_out_len,
                         args.layers, args.propalpha,  args.tanhalpha, layer_norm_affline, args.attention_layer)
         else:
             kernel_set = [2, 3, 6, 7]
@@ -154,7 +155,7 @@ def run(args):
                     node_dim = args.node_dim, dilation_exponential = args.dilation_exponential,
                     conv_channels = args.conv_channels, residual_channels = args.residual_channels,
                     skip_channels = args.skip_channels, end_channels = args.end_channels,
-                    seq_length = args.seq_in_len, in_dim = args.in_dim, out_dim = args.seq_out_len,
+                    seq_length = args.seq_in_len, in_dim = args.in_dim, out_dim = seq_out_len,
                     layers = args.layers, propalpha = args.propalpha, tanhalpha = args.tanhalpha, attention_layer = args.attention_layer, layer_norm_affline = layer_norm_affline)
 
         model = model.to(device)
@@ -284,7 +285,6 @@ if __name__ == "__main__":
     parser.add_argument("--end_channels", type = int, default = 64, help = "end channels")
     parser.add_argument("--in_dim", type = int, default = 1, help = "inputs dimension")
     parser.add_argument("--seq_in_len", type = int, default = 24 * 7, help = "input sequence length")
-    parser.add_argument("--seq_out_len", type = int, default = 1, help = "output sequence length")
     parser.add_argument("--horizon", type = int, default = 3)
     parser.add_argument("--layers", type = int, default = 5, help = "number of layers")
     parser.add_argument("--batch_size", type = int, default = 3, help = "batch size")
