@@ -148,13 +148,13 @@ class DataLoader(object):
         if stationary_check:
             self._check_stationarity()
 
-        self.data = np.zeros(self.raw_data.shape)
+        tmp_data = self.raw_data.loc[:self.end_time]
+        self.data = np.zeros(tmp_data.shape)
         if noise_removal:
-            end_date_index = self.raw_data.loc[:self.end_time].shape[0]
-            for i in range(self.raw_data.shape[1]):
-                self.data[:, i] = self._noise_removal(self.raw_data.iloc[:end_date_index, i].to_numpy())
+            for i in range(tmp_data.shape[1]):
+                self.data[:, i] = self._noise_removal(tmp_data.iloc[:, i].to_numpy())
         else:
-            self.data = self.raw_data.loc[:self.end_time].to_numpy()
+            self.data = tmp_data.to_numpy()
 
         self.n, self.m = self.data.shape
         print(f"There are {self.num_currencies} currencies involved in the data.")
