@@ -28,7 +28,7 @@ Files: </br>
 ```main.py``` - This script serves as the entry point for the application. It orchestrates the training and evaluation process of the model. It also contains a parser to assign command-line arguments for configuring model parameters. </br>
 ```optimizer.py``` – This module defines a customizable optimizer class that supports various optimization methods, gradient clipping, and dynamic learning rate adjustment based on validation performance metrics. </br>
 ```requirements.txt``` – This file contains the requirements needed to run the program. </br>
-```crypto-studies-w-gnn.ipynb``` – Contains all the implemented baseline models and its results. </br>
+```baseline-models.ipynb``` – Contains all the implemented baseline models and its results. </br>
 ```test_processing.py``` - Python script to get the MAPE for each cryptocurrency after getting results from MTGNN </br>
 
 
