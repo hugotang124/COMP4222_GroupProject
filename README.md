@@ -21,8 +21,8 @@ TANG, Siu Hang </br>
 Files: </br>
 ```data_loader.py``` – involves standardizing the data, creating batches and adding features to the cryptocurrency raw data set. </br>
 ```fetch_data.py``` – This script is designed to retrieve data for each cryptocurrency through the BINANCE API. </br>
-```old_layer.py``` - This module defines custom neural network layers used in the model architecture. This is the first version of the layers of MTGNN implemented by us. </br>
-```layer.py``` - This module defines custom neural network layers used in the model architecture. This is the second version of the layers of MTGNN implemented by us. </br>
+```old_layer.py``` - This module defines custom neural network layers used in the model architecture. This is the first version of the layers of MTGNN implemented. </br>
+```layer.py``` - This module defines custom neural network layers used in the model architecture. This is the second version of the layers of MTGNN implemented. </br>
 ```old_net.py``` - This module implements the GTNet (Graph Temporal Network) architecture for multivariate time series forecasting using graph neural networks. This will be paired with old_layer.py. </br>
 ```net.py``` - This module implements the MTGNN (Multivariate Time Series Forecasting Graph Neural Network) architecture for predicting multivariate time series data using graph neural networks. This will be paired with layer.py. </br>
 ```main.py``` - This script serves as the entry point for the application. It orchestrates the training and evaluation process of the model. It also contains a parser to assign command-line arguments for configuring model parameters. </br>
@@ -36,13 +36,13 @@ To get the dataset: </br>
 ```python fetch_data.py --symbols "PEPEUSDT,TRXUSDT,ADAUSDT,ATOMUSDT,BTCUSDT,VETUSDT,XLMUSDT,POLUSDT,AVAXUSDT,TONUSDT,SUIUSDT,RENDERUSDT,STXUSDT,LINKUSDT,OPUSDT,HBARUSDT,JUPUSDT,FTMUSDT,ALGOUSDT,FETUSDT,MKRUSDT,SHIBUSDT,UNIUSDT,LDOUSDT,THETAUSDT,SOLUSDT,IMXUSDT,TIAUSDT,ICPUSDT,WIFUSDT,APTUSDT,GRTUSDT,FLOKIUSDT,TAOUSDT,DOGEUSDT,WBETHUSDT,BCHUSDT,RUNEUSDT,WLDUSDT,BNBUSDT,OMUSDT,SEIUSDT,XRPUSDT,BONKUSDT,ETHUSDT,DAIUSDT,FILUSDT,DOTUSDT,ETCUSDT,INJUSDT,NEARUSDT,ENAUSDT,LTCUSDT,AAVEUSDT,ARBUSDT,PYTHUSDT" --start-date "2019-10-01" --end-date "2024-11-01" --interval "1h"```
 </br>
 </br>
-To run the code for MTGNN - Multiple Features (1st Version - implemented by us): </br>
+To run the code for MTGNN - Multiple Features (1st Version - implemented): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16"``` </br>
-Alternatively - Multiple Features (2nd Version - implemented by us): </br>
+Alternatively - Multiple Features (2nd Version - implemented): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --new```  </br>
-To run the code for MTGNN - One Feature (Close Price) (1st Version - implemented by us): </br>
+To run the code for MTGNN - One Feature (Close Price) (1st Version - implemented): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --one_feature```  </br>
-Alternatively - One Feature (2nd Version - implemented by us): </br>
+Alternatively - One Feature (2nd Version - implemented): </br>
 ```python main.py --normalize "1" --time_interval "1h" --num_split "3"  --subgraph_size "2" --batch_size "16" --new --one_feature```  </br>
 To add an attention layer, simply add this at the end of the line: </br>
 ```--attention_layer```
